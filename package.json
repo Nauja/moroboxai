@@ -1,0 +1,73 @@
+{
+  "name": "moroboxai",
+  "version": "0.1.0",
+  "description": "Standalone version of MoroboxAI",
+  "main": "build/index.js",
+  "scripts": {
+    "lint:gulp": "gulp lint",
+    "build:gulp": "gulp build",
+    "build:web": "gulp build --web",
+    "lint": "npm run lint:gulp -s",
+    "prebuild": "npm run lint:gulp -s",
+    "build": "npm run build:gulp -s",
+    "preweb": "npm run lint:gulp -s",
+    "web": "npm run build:web",
+    "serve": "webpack-dev-server --hot --config webpack.config.js",
+    "servebuild": "cross-env NODE_ENV=production webpack",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nauja/moroboxai.git"
+  },
+  "author": "Yahiko <yahiko.ninja@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/yargs": "^15.0.9",
+    "clean-webpack-plugin": "^3.0.0",
+    "copy-webpack-plugin": "^5.1.1",
+    "cross-env": "^7.0.2",
+    "electron": "^10.1.5",
+    "electron-builder": "^22.9.1",
+    "file-system": "^2.2.2",
+    "mocha": "^7.1.1",
+    "mocha-loader": "^5.0.0",
+    "ts-loader": "^6.2.2",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0"
+  },
+  "dependencies": {
+    "@types/node": "^14.11.8",
+    "del": "^6.0.0",
+    "express-static-zip": "^0.2.2",
+    "gulp": "^4.0.2",
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-tslint": "^8.1.4",
+    "gulp-typescript": "^6.0.0-alpha.1",
+    "node-stream-zip": "^1.12.0",
+    "pixi.js": "^5.3.3",
+    "tslint": "^6.1.3",
+    "tslint-eslint-rules": "^5.4.0",
+    "webpack-node-externals": "^2.5.2",
+    "webpack-stream": "^6.1.0",
+    "yargs": "^16.1.1"
+  },
+  "build": {
+    "appId": "com.moroboxai",
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "unicode": false,
+      "artifactName": "moroboxai.exe"
+    },
+    "files": [
+      "build/**/*",
+      "package.json"
+    ]
+  }
+}

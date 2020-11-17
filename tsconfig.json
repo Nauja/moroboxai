@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es2019",
+		"lib": [
+			"es2019",
+			"es2019.object",
+			"dom"
+		],
+		"typeRoots" : ["node_modules/pixi.js"],
+		"types": ["pixi.js"],
+		"declaration": false,
+		"noImplicitAny": false,
+		"removeComments": true,
+		"sourceMap": true,
+		"allowJs": true
+	},
+	"exclude": [
+		"build"
+	]
+}
