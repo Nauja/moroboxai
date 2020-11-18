@@ -59,7 +59,7 @@
 		"prefer-for-of": true,
 		"use-isnan": true,
 		"array-type": [false],
-		"interface-name": [true, "never-prefix"],
+		"interface-name": [false, "never-prefix"],
 		"radix": false,
 		"typedef": [
 			"parameter",

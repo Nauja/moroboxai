@@ -1,5 +1,8 @@
 import * as fs from 'fs';
+import * as http from 'http';
+import * as net from 'net';
 import * as StreamZip from 'node-stream-zip';
+import * as model from './model';
 
 const GAME_HEADER_NAME: string = 'header.json';
 
@@ -27,7 +30,7 @@ const GAME_HEADER_NAME: string = 'header.json';
  * @param {string} file - Game .zip file.
  * @param {function} callback - Function called when done or an error occured.
  */
-function readGameHeader(file: string, callback: (err: any, header: any) => void): void {
+function readGameHeader(file: string, callback: (err: any, header: model.GameHeader) => void): void {
     // open zip file
     const zip = new StreamZip({
         file,
@@ -103,14 +106,14 @@ function readGameHeader(file: string, callback: (err: any, header: any) => void)
  * @param {function} callback - Function called for each file.
  * @param {function} done - Function called when done.
  */
-function readGamesHeaders(files: string[], callback: (err: any | null, file: string, header: any) => void, done: () => void): void {
+function readGames(files: string[], callback: (err: any | null, game: model.GameZip) => void, done: () => void): void {
     // map each file to a promise and wait for all
     Promise.all(
         files.map(file => new Promise((resolve, _) => {
             readGameHeader(file, (err, header) => {
                 // callback is called for each file
                 if (callback !== undefined) {
-                    callback(err, file, header);
+                    callback(err, { file, header });
                 }
                 resolve();
             });
@@ -148,4 +151,71 @@ function listZipFiles(root: string, callback: (err: any | null, files: string[])
     });
 }
 
-export { readGameHeader, readGamesHeaders, listZipFiles };
+interface ILocalFileServer {
+    /**
+     * Port we are listening to.
+     * @returns {number} Port number
+     */
+    readonly port : number;
+
+    /**
+     * Build the absolute URL to a file served by this server.
+     *
+     * ```js
+     * console.log(server.href('index.html'))
+     * // http://host:port/index.html
+     * ```
+     * @param {string} url - Relative URL.
+     * @returns {string} Absolute URL.
+     */
+    href(url: string) : string;
+}
+
+/**
+ * Local file server.
+ *
+ * This server is used to serve static files from disk
+ * to HTML, such as CSS or JS files, throught a local
+ * HTTP socket.
+ *
+ * This is also used to serve the files bundled in games
+ * archives.
+ */
+class LocalFileServer implements ILocalFileServer {
+    private _server: http.Server;
+
+    constructor() {
+        this._server = http.createServer(
+            (req, res) => {
+                fs.readFile(`./${req.url}`, (err, data) => {
+                    console.log(`request ${req.url}`);
+                    if (err) {
+                        res.statusCode = 404;
+                        res.end('404: File Not Found');
+                    } else {
+                        res.setHeader('Content-Type', 'text/css');
+                        res.end(data);
+                    }
+                });
+            }
+        );
+    }
+
+    public get port() : number {
+        return (this._server.address() as net.AddressInfo).port;
+    }
+
+    /**
+     * Start server on a random local port.
+     * @param {function} callback - Called when server is started.
+     */
+    public listen(callback?: () => void) {
+        return this._server.listen(0, '127.0.0.1', callback);
+    }
+
+    public href(url: string) : string {
+        return `http://127.0.0.1:${this.port}/${url}`;
+    }
+}
+
+export { readGameHeader, readGames, listZipFiles, ILocalFileServer, LocalFileServer };

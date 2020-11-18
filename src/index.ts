@@ -5,16 +5,14 @@ import { hideBin } from 'yargs/helpers';
 
 const WINDOW_WIDTH: number = 480;
 const WINDOW_HEIGHT: number = 480;
+const GAMES_DIR: string = './games';
+const MAIN_CSS: string = 'theme.css';
+const BOOT_MIN_DURATION: number = 4000;
 
 // parse command line arguments
 const argv = yargs(hideBin(process.argv)).command(
     'moroboxai', 'Run MoroboxAI'
 ).option<string, yargs.Options>(
-    'games-dir', {
-        description: 'Directory containing MoroboxAI games',
-        type: 'string',
-        default: './games'
-}).option<string, yargs.Options>(
     'host', {
         description: 'Public TCP host used for AIs',
         type: 'string',
@@ -34,6 +32,21 @@ const argv = yargs(hideBin(process.argv)).command(
         description: 'Force window height',
         type: 'number',
         default: WINDOW_HEIGHT
+}).option<string, yargs.Options>(
+    'games-dir', {
+        description: 'Directory containing MoroboxAI games',
+        type: 'string',
+        default: GAMES_DIR
+}).option<string, yargs.Options>(
+    'main-css', {
+        description: 'Path to custom theme.css file',
+        type: 'string',
+        default: MAIN_CSS
+}).option<string, yargs.Options>(
+    'boot-duration', {
+        description: 'Forced minimum boot duration',
+        type: 'number',
+        default: BOOT_MIN_DURATION
 }).help()
 .alias('help', 'h')
 .argv;
@@ -51,9 +64,11 @@ ElectronApp.on('ready', () => {
         }
     });
     mainWindow.loadFile(`${__dirname}/app/index.html`, {query: {options: JSON.stringify({
-        gamesDir: argv.gamesDir,
         host: argv.host,
-        port: argv.port
+        port: argv.port,
+        gamesDir: argv.gamesDir,
+        mainCss: argv.mainCss,
+        bootDuration: argv.bootDuration
     })}});
     mainWindow.on('closed', () => {
         mainWindow = null;

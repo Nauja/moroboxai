@@ -1,98 +1,59 @@
 //import * as TowerDefense from '@moroboxai-games/towerdefense';
 //import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 import * as staticZip from 'express-static-zip';
-import * as http from 'http';
 import * as net from 'net';
-import * as path from 'path';
 import * as PIXI from 'pixi.js';
 import * as querystring from 'querystring';
+import * as model from './model';
 import * as monad from './monad';
+import * as screen from './screen';
 
-const filesServer: http.Server = http.createServer(staticZip('./games/pong.zip')).listen(0, '127.0.0.1', () => {
-    const address: net.AddressInfo = filesServer.address() as net.AddressInfo;
-    console.log(`Files server listening on ${address.address}:${address.port}`);
-});
+class GameInstance implements model.IGameInstance {
+    private _options: model.ProgramOptions;
+    private _fileServer: monad.ILocalFileServer;
+    private _games: model.GameZip[];
 
-// get back command line arguments from URL query
-const query: querystring.ParsedUrlQuery = querystring.parse(global.location.search);
-const options: any = JSON.parse(query['?options'] as string);
+    constructor(options: model.ProgramOptions) {
+        this._options = options;
+    }
 
-/**
- * Load all valid games from a directory.
- *
- * ```js
- * loadGames('/some/dir', games => {
- *     console.log(games);
- * });
- * ```
- *
- * Each game is bundled in a .zip file containing a header.json
- * file describing the game.
- * @param {string} root - Games directory.
- * @param {function} callback - Called on completion.
- */
-function loadGames(root: string, callback: (games: Array<any>) => void) {
-    const games: Array<any> = Array<any>();
-
-    console.log(`Loading games from "${root}" directory...`);
-    // list .zip files contained in directory
-    monad.listZipFiles(root, (err, files) => {
-        // an IO error occured
-        if (err !== undefined) {
-            console.error(`Failed to load games: ${err}`);
-            callback(games);
-            return;
-        }
-
-        // load headers from .zip files
-        monad.readGamesHeaders(
-            files.map(_ => path.join(root, _)),
-            (errFile, file, header) => {
-                // incorrect game, discard
-                if (errFile !== undefined) {
-                    console.error(`Failed to load game ${file}: ${errFile}`);
-                    return;
-                }
-
-                // correct game, keep it
-                console.log(`Loaded game ${header.title} from ${file}`);
-                games.push({
-                    file,
-                    header
-                });
-            },
-            () => {
-                // done
-                callback(games);
+    public run() {
+        const bootScreen: screen.BootScreen = new screen.BootScreen(
+            document.getElementById('boot_screen'),
+            {
+                gamesDir: this._options.gamesDir,
+                minDuration: this._options.bootDuration,
+                mainCss: this._options.mainCss
             }
         );
-    });
+        bootScreen.run((filesServer, games) => {
+            this._fileServer = filesServer;
+            this._games = games;
+
+            bootScreen.remove();
+            const homeScreen = new screen.HomeScreen(
+                document.body,
+                this
+            );
+            homeScreen.run();
+        });
+    }
+
+    public get games(): model.GameZip[] {
+        return this._games;
+    }
+
+    public href(url: string): string {
+        return this._fileServer.href(url);
+    }
 }
 
-const gamesDir: string = options.gamesDir;
-let gamess: any[];
-Promise.all([
-    new Promise((resolve, reject) => {
-        loadGames(gamesDir, games => {
-            gamess = games;
-            console.log(`Loaded ${games.length} game(s)`);
-            resolve();
-        });
-    }),
-    new Promise((resolve, reject) => {
-        setTimeout(resolve, 1000);
-    })
-]).then(() => {
-    const oldPanel = document.getElementById('startup_screen');
-    const newPanel = document.createElement('div');
-    newPanel.id = 'home_screen';
-    newPanel.className = 'screen';
-    document.body.replaceChild(newPanel, oldPanel);
-    gamess.forEach(game => {
-        const label = document.createElement('span');
-        label.textContent = game.header.title;
-        newPanel.appendChild(label);
-    });
+document.addEventListener('DOMContentLoaded', _ => {
+    // get back command line arguments from URL query
+    const query: querystring.ParsedUrlQuery = querystring.parse(global.location.search);
+    const options: model.ProgramOptions = JSON.parse(query['?options'] as string);
+    // run game instance
+    (new GameInstance(options)).run();
 });
 
 function on_server_started() {
@@ -128,7 +89,7 @@ function on_server_started() {
     */
 }
 
-// start TCP server for AI connections
+/*
 const server: net.Server = net.createServer(
     socket => {
         console.log('connection');
@@ -140,3 +101,4 @@ server.listen(options.port, options.host, () => {
     console.log(`MoroboxAI is listening on ${address.address}:${address.port}`);
     on_server_started();
 });
+*/
