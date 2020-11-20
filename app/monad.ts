@@ -62,20 +62,49 @@ function readGameZip(zip: StreamZip, entry: string): model.GameZip {
     const game: model.GameZip = {
         file: undefined,
         header: readZipEntryJSON(zip, entry),
-        icon: undefined
+        icon: undefined,
+        preview: undefined
     };
 
     // try to get icon
     if (game.header.icon) {
         try {
             game.icon = readZipEntry(zip, game.header.icon);
-            console.log(`Found icon ${game.header.icon} for ${game.header.title}`);
-        } catch(e) {
-            console.warn(`Icon ${game.header.icon} not found for ${game.header.title}: ${e}`);
+        } catch(_) {
+            console.warn(`Icon ${game.header.icon} not found for ${game.header.title}`);
+        }
+    }
+
+    // try to get preview
+    if (game.header.preview) {
+        try {
+            game.preview = readZipEntry(zip, game.header.preview);
+        } catch(_) {
+            console.warn(`Preview ${game.header.preview} not found for ${game.header.title}`);
         }
     }
 
     return game;
+}
+
+/**
+ * Load a .zip file to memory.
+ * @param {string} file - Path to file.
+ * @param {function} callback - Called when done.
+ */
+function loadZip(file: string, callback: (err: any, zip: StreamZip) => void) {
+    const zip = new StreamZip({
+        file,
+        storeEntries: true
+    });
+
+    zip.on('ready', () => {
+        callback(undefined, zip);
+    });
+
+    zip.on('error', _ => {
+        callback(_, undefined);
+    });
 }
 
 /**
@@ -94,13 +123,12 @@ function readGameZip(zip: StreamZip, entry: string): model.GameZip {
  * @param {function} callback - Function called when done or error occured.
  */
 function loadGameZip(file: string, callback: (err: any, game: model.GameZip) => void): void {
-    // open zip file
-    const zip = new StreamZip({
-        file,
-        storeEntries: true
-    });
+    loadZip(file, (err, zip) => {
+        if (err) {
+            callback(err, undefined);
+            return;
+        }
 
-    zip.on('ready', () => {
         try {
             // valid zip
             const game = readGameZip(zip, GAME_HEADER_NAME);
@@ -112,11 +140,6 @@ function loadGameZip(file: string, callback: (err: any, game: model.GameZip) => 
             zip.close();
             callback(e, undefined);
         }
-    });
-
-    // couldn't read zip file
-    zip.on('error', _ => {
-        callback(_, undefined);
     });
 }
 
@@ -203,6 +226,12 @@ interface ILocalFileServer {
      * @param {model.GameZip[]} games - List of games.
      */
     setGames(games: model.GameZip[]): void;
+
+    /**
+     * Set the game whose static files are served by this server.
+     * @param {StreamZip} game - Game.
+     */
+    setGame(game: StreamZip): void;
 }
 
 /**
@@ -220,6 +249,8 @@ class LocalFileServer implements ILocalFileServer {
     private _server: http.Server;
     // list of games for serving static files
     private _games: any;
+    // loaded game
+    private _game: StreamZip;
 
     constructor() {
         this._server = http.createServer(
@@ -251,14 +282,25 @@ class LocalFileServer implements ILocalFileServer {
         });
     }
 
+    public setGame(game: StreamZip): void {
+        this._game = game;
+    }
+
     private _route(url: string, res: http.ServerResponse): void {
         console.log(`request ${url}`);
-        const result = url.match(/^\/games\/(?<id>(\w+[-])+\w+)\/(?<file>.*)$/);
+        let result = url.match(/^\/games\/(?<id>(\w+[-])+\w+)\/(?<file>.*)$/);
         if (result) {
             this._routeGames(result.groups.id, result.groups.file, res);
-        } else {
-            this._routeAssets(url, res);
+            return;
         }
+
+        result = url.match(/^\/game\/(?<file>.*)$/);
+        if (result) {
+            this._routeGame(result.groups.file, res);
+            return;
+        }
+
+        this._routeAssets(url, res);
     }
 
     /**
@@ -287,18 +329,40 @@ class LocalFileServer implements ILocalFileServer {
      * @param {http.ServerResponse} res - Response.
      */
     private _routeGames(id: string, file: string, res: http.ServerResponse): void {
+        const game: model.GameZip = this._games[id];
+        if (game === undefined) {
+            res.writeHead(404);
+            return;
+        }
+
         if (file === 'icon') {
-            const game: model.GameZip = this._games[id];
-            if (game !== undefined) {
-                res.setHeader('Content-Type', mime.lookup(game.header.icon));
-                res.end(game.icon);
-            } else {
-                res.writeHead(404);
-                res.setHeader('Content-Type', mime.lookup('.png'));
-                res.end(undefined);
-            }
+            res.setHeader('Content-Type', mime.lookup(game.header.icon));
+            res.end(game.icon);
+        } else if (file === 'preview') {
+            res.setHeader('Content-Type', mime.lookup(game.header.preview));
+            res.end(game.preview);
+        }
+    }
+
+    /**
+     * Route for serving static files from loaded game .zip file.
+     * @param {string} file - Requested static file.
+     * @param {http.ServerResponse} res - Response.
+     */
+    private _routeGame(file: string, res: http.ServerResponse): void {
+        if (this._game === undefined) {
+            res.writeHead(404);
+            return;
+        }
+
+        try {
+            res.setHeader('Content-Type', mime.lookup(file));
+            res.end(readZipEntry(this._game, file));
+        } catch(_) {
+            res.writeHead(404);
+            res.end(undefined);
         }
     }
 }
 
-export { loadGameZip, loadGameZips, listZipFiles, ILocalFileServer, LocalFileServer };
+export { loadGameZip, loadGameZips, loadZip, listZipFiles, ILocalFileServer, LocalFileServer };

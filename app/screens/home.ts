@@ -1,18 +1,5 @@
 import * as model from '../model';
-
-function createElement(tag, options: any): HTMLElement {
-    const newPanel = document.createElement(tag);
-    if (options.id !== undefined) {
-        newPanel.id = options.id;
-    }
-    if (options.class !== undefined) {
-        newPanel.className = options.class;
-    }
-    if (options.text !== undefined) {
-        newPanel.innerHTML = options.text;
-    }
-    return newPanel;
-}
+import { createElement } from '../model';
 
 class GameListItem {
     public readonly root: HTMLElement;
@@ -27,7 +14,7 @@ class GameListItem {
         const img = createElement('img', {
             class: 'mai-icon'
         });
-        img.setAttribute('src', gameInstance.href(`games/${data.header.id}/icon`));
+        img.setAttribute('src', gameInstance.gamesHref(data, 'icon'));
         this.root.appendChild(img);
         this.root.appendChild(createElement('header', {
             text: data.header.title
@@ -49,6 +36,7 @@ class GameListItem {
 class GameList {
     public readonly root: HTMLElement;
     public onGameSelected: (game: model.GameZip) => void;
+    public onGameClicked: (game: model.GameZip) => void;
     private _gameInstance: model.IGameInstance;
     private _items: GameListItem[];
     private _selectedIndex: number;
@@ -75,6 +63,11 @@ class GameList {
             item.root.addEventListener('mouseover', () => {
                 this.select(index);
             });
+            item.root.addEventListener('mouseup', () => {
+                if (this.onGameClicked !== undefined) {
+                    this.onGameClicked(game);
+                }
+            });
         });
     }
 
@@ -99,20 +92,36 @@ class GameList {
 
 class GameInfo {
     public readonly root: HTMLElement;
+    private _gameInstance: model.IGameInstance;
+    private _img: HTMLElement;
+    private _description: HTMLElement;
 
-    constructor() {
+    constructor(gameInstance: model.IGameInstance) {
         this.root = createElement('div', {
             id: 'mai_game_info'
         });
+        this._gameInstance = gameInstance;
+
+        this._img = createElement('img', {
+            class: 'mai-preview'
+        });
+        this.root.appendChild(this._img);
+
+        this._description = createElement('span', {
+            class: 'mai-preview'
+        });
+        this.root.appendChild(this._description);
     }
 
     public update(game: model.GameZip) {
-        console.log('test');
+        this._img.setAttribute('src', this._gameInstance.gamesHref(game, 'preview'));
+        this._description.innerHTML = game.header.description;
     }
 }
 
 export class Screen {
     public readonly root: HTMLElement;
+    public onLaunchGame: (game: model.GameZip) => void;
     private _gameInstance: model.IGameInstance;
     private _gameList: GameList;
     private _gameInfo: GameInfo;
@@ -127,13 +136,16 @@ export class Screen {
     public init(gameInstance: model.IGameInstance, ready?: () => void): void {
         this._gameInstance = gameInstance;
         this._gameList = new GameList(gameInstance);
-        this._gameInfo = new GameInfo();
+        this._gameInfo = new GameInfo(gameInstance);
         this.root.appendChild(this._gameList.root);
         this.root.appendChild(this._gameInfo.root);
 
         const games = this._gameInstance.games;
         this._gameList.onGameSelected = game => {
             this._onGameSelected(game);
+        };
+        this._gameList.onGameClicked = game => {
+            this._onGameClicked(game);
         };
         this._gameList.update(games);
         this._gameList.select(0);
@@ -145,5 +157,11 @@ export class Screen {
 
     private _onGameSelected(game: model.GameZip) {
         this._gameInfo.update(game);
+    }
+
+    private _onGameClicked(game: model.GameZip) {
+        if (this.onLaunchGame !== undefined) {
+            this.onLaunchGame(game);
+        }
     }
 }

@@ -1,3 +1,4 @@
+import { Screen as GameScreen } from './screens/game';
 import { Screen as HomeScreen } from './screens/home';
 
-export { HomeScreen };
+export { GameScreen, HomeScreen };
