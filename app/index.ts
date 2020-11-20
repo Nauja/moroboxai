@@ -1,104 +1,167 @@
-//import * as TowerDefense from '@moroboxai-games/towerdefense';
-//import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
-import * as staticZip from 'express-static-zip';
-import * as net from 'net';
-import * as PIXI from 'pixi.js';
-import * as querystring from 'querystring';
-import * as model from './model';
-import * as monad from './monad';
-import * as screen from './screen';
+document.addEventListener('DOMContentLoaded', event => {
+    const path = require('path');
+    const querystring = require('querystring');
+    const monad = require('./monad');
 
-class GameInstance implements model.IGameInstance {
-    private _options: model.ProgramOptions;
-    private _fileServer: monad.ILocalFileServer;
-    private _games: model.GameZip[];
+    // get back command line arguments from URL query
+    const query = querystring.parse(global.location.search);
+    const options = JSON.parse(query['?options'] as string);
 
-    constructor(options: model.ProgramOptions) {
-        this._options = options;
+    /**
+     * Handle resizing the window.
+     * @param {UIEvent} [evt] - Resize event.
+     */
+    function resize(evt?: UIEvent) {
+        const widthRatio = document.body.clientWidth / options.nativeWidth;
+        const heightRatio = document.body.clientHeight / options.nativeHeight;
+        document.body.style.fontSize = `${widthRatio}em`;
     }
 
-    public run() {
-        const bootScreen: screen.BootScreen = new screen.BootScreen(
-            document.getElementById('boot_screen'),
-            {
-                gamesDir: this._options.gamesDir,
-                minDuration: this._options.bootDuration,
-                mainCss: this._options.mainCss
-            }
-        );
-        bootScreen.run((filesServer, games) => {
-            this._fileServer = filesServer;
-            this._games = games;
+    // first resize for initial window size
+    window.addEventListener('resize', resize);
+    resize();
 
-            bootScreen.remove();
-            const homeScreen = new screen.HomeScreen(
-                document.body,
-                this
-            );
-            homeScreen.run();
+    function injectAssets(fileServer, callback: () => void) : void {
+        Promise.all([
+            new Promise((resolve, reject) => {
+                // inject main CSS dynamically in head
+                const item = document.createElement('link');
+                item.rel = 'stylesheet';
+                item.type = 'text/css';
+                item.href = fileServer.href(options.mainCss);
+                item.onload = () => {
+                    // everything fine
+                    console.log(`Loaded ${options.mainCss}`);
+                    callback();
+                };
+                item.onerror = (evt, source, lineno, colno, error) => {
+                    // some error
+                    console.error(`Error loading ${options.mainCss}: ${error}`);
+                    callback();
+                };
+                document.head.appendChild(item);
+            }),
+            new Promise((resolve, reject) => {
+                // inject font dynamically in head
+                const item = document.createElement('style');
+                item.innerText = '@font-face {' +
+                    'font-family: "8bit";' +
+                    `src: url("${fileServer.href('assets/8bitwonder.TTF')}") format("truetype");` +
+                    '}';
+                item.onload = () => {
+                    // everything fine
+                    console.log(`Loaded font 8bit`);
+                    callback();
+                };
+                item.onerror = (evt, source, lineno, colno, error) => {
+                    // some error
+                    console.error(`Error loading font 8bit: ${error}`);
+                    callback();
+                };
+                document.head.appendChild(item);
+            })
+        ]).then(callback);
+    }
+
+    /**
+     * Boot process.
+     *
+     * It performs some tasks before displaying menus:
+     * * Start the LocalFileServer.
+     * * Load the main CSS file before displaying menus.
+     * * Read games headers from game directory.
+     * @param {function} callback - Function called when done.
+     */
+    function boot(callback: (fileServer, games) => void): void {
+        const fileServer = new monad.LocalFileServer();
+        let loadedGames;
+        Promise.all([
+            new Promise((resolve, reject) => {
+                // initialize local file server
+                fileServer.listen(() => {
+                    console.log(`LocalFileServer started on port ${fileServer.port}`);
+                    // load external assets
+                    injectAssets(fileServer, resolve);
+                });
+            }),
+            new Promise((resolve, reject) => {
+                // load games headers
+                loadGames(options.gamesDir, games => {
+                    loadedGames = games;
+                    console.log(`Loaded ${games.length} game(s)`);
+                    resolve();
+                });
+            }),
+            new Promise((resolve, reject) => {
+                // force waiting a little
+                setTimeout(resolve, options.bootDuration);
+            })
+        ]).then(() => {
+            callback(fileServer, loadedGames);
+        }).catch(() => {
+            console.error('Boot failed, see error above');
         });
     }
 
-    public get games(): model.GameZip[] {
-        return this._games;
+    /**
+     * Load all valid games from a directory.
+     *
+     * ```js
+     * loadGames('/some/dir', games => {
+     *     console.log(games);
+     * });
+     * ```
+     *
+     * Each game is bundled in a .zip file containing a header.json
+     * file describing the game.
+     * @param {string} root - Games directory.
+     * @param {function} callback - Called on completion.
+     */
+    function loadGames(root: string, callback: (games) => void) {
+        const games: Array<any> = Array<any>();
+
+        console.log(`Loading games from "${root}" directory...`);
+        // list .zip files contained in directory
+        monad.listZipFiles(root, (err, files) => {
+            // an IO error occured
+            if (err !== undefined) {
+                console.error(`Failed to load games: ${err}`);
+                callback(games);
+                return;
+            }
+
+            // load headers from .zip files
+            monad.loadGameZips(
+                files.map(_ => path.join(root, _)),
+                (e, game) => {
+                    // incorrect game, discard
+                    if (e) {
+                        console.error(`Failed to load game ${game.file}: ${e}`);
+                        return;
+                    }
+
+                    // correct game, keep it
+                    console.log(`Loaded game ${game.header.title} from ${game.file}`);
+                    games.push(game);
+                },
+                () => {
+                    // done
+                    callback(games);
+                }
+            );
+        });
     }
 
-    public href(url: string): string {
-        return this._fileServer.href(url);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', _ => {
-    // get back command line arguments from URL query
-    const query: querystring.ParsedUrlQuery = querystring.parse(global.location.search);
-    const options: model.ProgramOptions = JSON.parse(query['?options'] as string);
-    // run game instance
-    (new GameInstance(options)).run();
-});
-
-function on_server_started() {
-    console.log(`cwd ${process.cwd()}`);
-    //console.log(`Using moroboxai-game-sdk v${MoroboxAIGameSDK.VERSION}`);
-
-    const loader = new PIXI.Loader();
-    loader.add('8bitwonder', 'assets/8bitwonder.tft');
-    loader.load((_, resources) => {
-        console.log('loaded');
+    // start boot process
+    boot((fileServer, games) => {
+        console.log('Boot done');
+        // really start moroboxai
+        const engine = require('./engine');
+        const gameInstance = new engine.GameInstance();
+        gameInstance.init(fileServer, games, options, () => {
+            // ready, destroy boot screen
+            console.log('Home menu ready');
+            document.getElementById('mai_boot_screen').remove();
+        });
     });
-
-    /*const gameInstance = new TowerDefense.Game();
-
-    gameInstance.frame = (game: MoroboxAIGameSDK.AbstractGame) => {
-        const size = game.output('screen_size');
-        const pos = game.output('pos');
-        const dir = game.output('dir');
-        if (dir.x >= 0) {
-            if (pos.x < size.x / 2.0 + 50) {
-                game.input('horizontal', 1.0);
-            } else {
-                game.input('horizontal', -1.0);
-            }
-        } else {
-            if (pos.x > size.x / 2.0 - 50) {
-                game.input('horizontal', -1.0);
-            } else {
-                game.input('horizontal', 1.0);
-            }
-        }
-    };
-    */
-}
-
-/*
-const server: net.Server = net.createServer(
-    socket => {
-        console.log('connection');
-    }
-);
-
-server.listen(options.port, options.host, () => {
-    const address: net.AddressInfo = server.address() as net.AddressInfo;
-    console.log(`MoroboxAI is listening on ${address.address}:${address.port}`);
-    on_server_started();
 });
-*/

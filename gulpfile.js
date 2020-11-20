@@ -70,7 +70,7 @@ gulp.task('build', () => {
 				extensions: ['.tsx', '.ts', '.js']
 			},
 			output: {
-				filename: 'app.js'
+				filename: 'boot.js'
 			},
 			externals: externals,
 			target: argv.web ? 'web' : 'electron-renderer',

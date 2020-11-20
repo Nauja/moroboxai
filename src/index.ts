@@ -3,10 +3,10 @@ import { app as ElectronApp, BrowserWindow } from 'electron';
 import * as yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-const WINDOW_WIDTH: number = 480;
-const WINDOW_HEIGHT: number = 480;
+const WINDOW_WIDTH: number = 640;
+const WINDOW_HEIGHT: number = 360;
 const GAMES_DIR: string = './games';
-const MAIN_CSS: string = 'theme.css';
+const MAIN_CSS: string = 'assets/theme.css';
 const BOOT_MIN_DURATION: number = 4000;
 
 // parse command line arguments
@@ -58,12 +58,15 @@ ElectronApp.on('ready', () => {
     mainWindow = new BrowserWindow({
         width: argv.width as number,
         height: argv.height as number,
+        useContentSize: true,
         resizable: true,
         webPreferences: {
             nodeIntegration: true
         }
     });
     mainWindow.loadFile(`${__dirname}/app/index.html`, {query: {options: JSON.stringify({
+        nativeWidth: WINDOW_WIDTH,
+        nativeHeight: WINDOW_HEIGHT,
         host: argv.host,
         port: argv.port,
         gamesDir: argv.gamesDir,

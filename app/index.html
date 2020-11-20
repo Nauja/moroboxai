@@ -6,14 +6,14 @@
 		<style>
 			* {padding: 0; margin: 0}
 
-			html, body, .screen, canvas {
+			html, body, .mai_screen, canvas {
 				width: 100%;
 				height: 100%;
 				overflow-x: hidden;
 				overflow-y: hidden;
 			}
 
-			#boot_screen {
+			#mai_boot_screen {
 				background-color: #1f1f1f;
 				display: flex;
 				flex-direction: column;
@@ -25,13 +25,13 @@
 
 			@keyframes glow {
 			0%   {color: rgba(255, 255, 255, 0.25);}
-			100% {color: rgba(255, 255, 255, 0.9);}
+			100% {color: #ffffffe6;}
 			}
 
 			h1 {
 				text-align: center;
-				font-size: 20pt;
-				color: rgba(255, 255, 255, 0.30);
+				font-size: 3em;
+				color: rgba(255, 255, 255, 0.25);
 				font-family: Helvetica, sans-serif;
 				text-shadow: 3px 3px 3px hsl(0 0% 0% / 0.6);
 				animation-name: glow;
@@ -43,9 +43,9 @@
 		</style>
 	</head>
 	<body>
-		<div id="boot_screen" class="screen">
+		<div id="mai_boot_screen" class="mai_screen">
 			<h1>MoroboxAI</h1>
 		</div>
 	</body>
-	<script src="./app.js"></script>
+	<script src="./boot.js"></script>
 </html>

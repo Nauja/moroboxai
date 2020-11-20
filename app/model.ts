@@ -1,24 +1,23 @@
-export interface Version {
-    major: number;
-    minor: number;
-    patch: number;
-}
-
 export interface GameHeader {
-    version: Version;
+    id: string;
+    version: string;
     title: string;
     description: string;
+    icon: string;
 }
 
 export interface GameZip {
     file: string;
     header: GameHeader;
+    icon: Buffer;
 }
 
 /**
  * Main options passed to the program.
  */
 export interface ProgramOptions {
+    nativeWidth: number;
+    nativeHeight: number;
     host: string;
     port: number;
     gamesDir: string;

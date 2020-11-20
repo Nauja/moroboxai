@@ -1,0 +1,73 @@
+@keyframes colorswitch {
+0% {background-color: #181d25;}
+25% {background-color: #1d201e;}
+50% {background-color: #201f1d;}
+75% {background-color: #201d20;}
+100% {background-color: #181d25;}
+}
+
+#mai_home_screen {
+    display: flex;
+    flex-direction: row;
+    background-color: #181d25;
+    animation-name: colorswitch;
+    animation-duration: 100s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
+
+#mai_game_list {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    max-height: 100%;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    overflow-x: hidden;
+}
+
+#mai_game_list article {
+    display: flex;
+    flex-direction: row;
+    font-family: '8bit';
+    font-size: 1em;
+    padding-left: 1em;
+    padding-right: 1em;
+    cursor: pointer;
+}
+
+#mai_game_list article.mai-selected {
+    background-color: #00000080;
+}
+
+#mai_game_list img {
+    width: 1em;
+    height: 1em;
+    align-self: center;
+    margin-right: 0.25em;
+    border: none;
+}
+
+#mai_game_list header {
+    color: #f2f2f2;
+}
+
+#mai_game_list body {
+    width: auto;
+    color: #bfbfbf;
+}
+
+#mai_game_info {
+    display: flex;
+    flex-direction: column;
+    width: 15em;
+    height: 100%;
+    max-height: 100%;
+    padding-right: 2em;
+    padding-top: 2em;
+    padding-bottom: 2em;
+    overflow: hidden;
+    border-left: 1px solid #00000040;
+    background-color: #00000040;
+}
