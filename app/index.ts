@@ -160,7 +160,6 @@ document.addEventListener('DOMContentLoaded', event => {
         const gameInstance = new engine.GameInstance();
         gameInstance.init(fileServer, games, options, () => {
             // ready, destroy boot screen
-            console.log('Home menu ready');
             document.getElementById('mai_boot_screen').remove();
         });
     });

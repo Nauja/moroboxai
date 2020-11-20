@@ -231,7 +231,7 @@ interface ILocalFileServer {
      * Set the game whose static files are served by this server.
      * @param {StreamZip} game - Game.
      */
-    setGame(game: StreamZip): void;
+    setGame(game: model.GameZip, zip: StreamZip): void;
 }
 
 /**
@@ -250,7 +250,8 @@ class LocalFileServer implements ILocalFileServer {
     // list of games for serving static files
     private _games: any;
     // loaded game
-    private _game: StreamZip;
+    private _game: model.GameZip;
+    private _gameZip: StreamZip;
 
     constructor() {
         this._server = http.createServer(
@@ -282,12 +283,12 @@ class LocalFileServer implements ILocalFileServer {
         });
     }
 
-    public setGame(game: StreamZip): void {
+    public setGame(game: model.GameZip, zip: StreamZip): void {
         this._game = game;
+        this._gameZip = zip;
     }
 
     private _route(url: string, res: http.ServerResponse): void {
-        console.log(`request ${url}`);
         let result = url.match(/^\/games\/(?<id>(\w+[-])+\w+)\/(?<file>.*)$/);
         if (result) {
             this._routeGames(result.groups.id, result.groups.file, res);
@@ -350,14 +351,25 @@ class LocalFileServer implements ILocalFileServer {
      * @param {http.ServerResponse} res - Response.
      */
     private _routeGame(file: string, res: http.ServerResponse): void {
+        res.setHeader('Content-Type', mime.lookup(file));
         if (this._game === undefined) {
             res.writeHead(404);
             return;
         }
 
+        if (file === 'index.html') {
+            const bootHref = this.href(`game/${this._game.header.boot}`);
+
+            res.end('<html>' +
+                `<body data-fileserver-url="${this.href('')}">` +
+                '</body>' +
+                `<script type="text/javascript" src="${bootHref}"></script>` +
+            '</html>');
+            return;
+        }
+
         try {
-            res.setHeader('Content-Type', mime.lookup(file));
-            res.end(readZipEntry(this._game, file));
+            res.end(readZipEntry(this._gameZip, file));
         } catch(_) {
             res.writeHead(404);
             res.end(undefined);
