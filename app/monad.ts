@@ -351,9 +351,12 @@ class LocalFileServer implements ILocalFileServer {
      * @param {http.ServerResponse} res - Response.
      */
     private _routeGame(file: string, res: http.ServerResponse): void {
+        console.log(file);
         res.setHeader('Content-Type', mime.lookup(file));
         if (this._game === undefined) {
+            console.error('no game');
             res.writeHead(404);
+            res.end(undefined);
             return;
         }
 
@@ -371,6 +374,7 @@ class LocalFileServer implements ILocalFileServer {
         try {
             res.end(readZipEntry(this._gameZip, file));
         } catch(_) {
+            console.error(_);
             res.writeHead(404);
             res.end(undefined);
         }

@@ -1,3 +1,5 @@
+import * as concat from 'concat-stream';
+import * as http from 'http';
 import * as model from '../model';
 import { createElement } from '../model';
 
@@ -17,7 +19,8 @@ export class Screen {
     // root HTMLElement.
     public readonly root: HTMLElement;
     // iframe embedding the game code and view.
-    private _iframe: HTMLIFrameElement;
+    private _background: HTMLElement;
+    private _script: HTMLElement;
     // will listen to message events.
     private _messageListener: (evt: MessageEvent) => void;
 
@@ -27,10 +30,14 @@ export class Screen {
             class: 'mai_screen'
         });
 
-        this._iframe = createElement('iframe', {
+        this._background = createElement('div', {
             class: 'mai_background'
-        }) as HTMLIFrameElement;
-        this.root.appendChild(this._iframe);
+        });
+        this.root.appendChild(this._background);
+
+        this._script = createElement('script', {});
+        this._script.setAttribute('type', 'text/javascript');
+        this.root.appendChild(this._script);
     }
 
     public init(gameInstance: model.IGameInstance, game: model.GameZip, ready?: () => void): void {
@@ -56,10 +63,16 @@ export class Screen {
             };
             window.addEventListener('message', this._messageListener, true);
             // splashart displayed in background while loading game
-            this._iframe.style.backgroundImage = `url("${gameInstance.gameHref(game.header.splashart)}")`;
+            this._background.style.backgroundImage = `url("${gameInstance.gameHref(game.header.splashart)}")`;
             // embedded the game view into our iframe
-            this._iframe.setAttribute('src', gameInstance.gameHref('index.html'));
-            this.root.appendChild(this._iframe);
+            console.log(gameInstance.gameHref(game.header.boot));
+            http.get(gameInstance.gameHref(game.header.boot), res => {
+                res.setEncoding('utf8');
+                res.pipe(concat({ encoding: 'string' }, remoteSrc => {
+                    const boot = eval(remoteSrc);
+                    boot(this._background);
+                }));
+            });
         });
     }
 

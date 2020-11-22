@@ -18,6 +18,13 @@ export class GameInstance implements model.IGameInstance {
 
         this._fileServer.setGames(games);
 
+        /*const module = require('module');
+        const originalRequire = module.prototype.require;
+        module.prototype.require = id => {
+            console.log('require', id);
+            return originalRequire.call(this, id);
+        };*/
+
         // initialize home screen
         this._homeScreen.init(
             this,
