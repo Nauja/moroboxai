@@ -2,6 +2,7 @@ import * as concat from 'concat-stream';
 import * as http from 'http';
 import * as model from '../model';
 import { createElement } from '../model';
+import * as monad from '../monad';
 
 const BOOT_FUNCTION_PREFIX: string = 'moroboxai:gameboot:';
 
@@ -70,7 +71,12 @@ export class Screen {
                 res.setEncoding('utf8');
                 res.pipe(concat({ encoding: 'string' }, remoteSrc => {
                     const boot = eval(remoteSrc);
-                    boot(this._background);
+                    const sdk = new monad.EmbeddedGameSDK(gameInstance);
+                    boot({
+                        root: this._background,
+                        sdk
+                    });
+                    sdk.notifyReady();
                 }));
             });
         });

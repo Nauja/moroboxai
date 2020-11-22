@@ -45,6 +45,10 @@ export class GameInstance implements model.IGameInstance {
         return this._games;
     }
 
+    public get port(): number {
+        return this._fileServer.port;
+    }
+
     public assetsHref(url: string): string {
         return this._fileServer.href(url);
     }

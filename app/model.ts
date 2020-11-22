@@ -36,6 +36,11 @@ export interface IGameInstance {
     readonly games: GameZip[];
 
     /**
+     * Local file server port.
+     */
+    readonly port: number;
+
+    /**
      * Load a game into memory.
      * @param {model.GameZip} game - Game .zip file.
      * @param {function} callback - Called when done.

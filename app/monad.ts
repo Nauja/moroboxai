@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as mime from 'mime-types';
+import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 import * as net from 'net';
 import * as StreamZip from 'node-stream-zip';
 import * as model from './model';
@@ -381,4 +382,36 @@ class LocalFileServer implements ILocalFileServer {
     }
 }
 
-export { loadGameZip, loadGameZips, loadZip, listZipFiles, ILocalFileServer, LocalFileServer };
+/**
+ * Embedded version of the SDK.
+ *
+ * This is meant to be run inside of MoroboxAI.
+ */
+class EmbeddedGameSDK extends MoroboxAIGameSDK.GameSDKBase {
+    private _gameInstance: model.IGameInstance;
+    private _address: net.AddressInfo;
+
+    constructor(gameInstance: model.IGameInstance) {
+        super();
+        this._gameInstance = gameInstance;
+        this._address = {
+            address: '127.0.0.1',
+            family: 'http',
+            port: gameInstance.port
+        };
+    }
+
+    public get address(): net.AddressInfo {
+        return this._address;
+    }
+
+    public notifyReady(): void {
+        super.notifyReady();
+    }
+
+    public href(id: string): string {
+        return this._gameInstance.gameHref(id);
+    }
+}
+
+export { loadGameZip, loadGameZips, loadZip, listZipFiles, ILocalFileServer, LocalFileServer, EmbeddedGameSDK };
