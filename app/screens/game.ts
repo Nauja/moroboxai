@@ -71,12 +71,10 @@ export class Screen {
                 res.setEncoding('utf8');
                 res.pipe(concat({ encoding: 'string' }, remoteSrc => {
                     const boot = eval(remoteSrc);
-                    const sdk = new monad.EmbeddedGameSDK(gameInstance);
                     boot({
                         root: this._background,
-                        sdk
+                        sdk: new monad.EmbeddedGameSDK(gameInstance)
                     });
-                    sdk.notifyReady();
                 }));
             });
         });

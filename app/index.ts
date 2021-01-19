@@ -76,15 +76,16 @@ document.addEventListener('DOMContentLoaded', event => {
         const fileServer = new monad.LocalFileServer();
         let loadedGames;
         Promise.all([
-            new Promise((resolve, reject) => {
+            new Promise((resolve, _) => {
                 // initialize local file server
-                fileServer.listen(() => {
+                fileServer.ready(() => {
                     console.log(`LocalFileServer started on port ${fileServer.port}`);
                     // load external assets
                     injectAssets(fileServer, resolve);
                 });
+                fileServer.listen();
             }),
-            new Promise((resolve, reject) => {
+            new Promise((resolve, _) => {
                 // load games headers
                 loadGames(options.gamesDir, games => {
                     loadedGames = games;
@@ -92,7 +93,7 @@ document.addEventListener('DOMContentLoaded', event => {
                     resolve();
                 });
             }),
-            new Promise((resolve, reject) => {
+            new Promise((resolve, _) => {
                 // force waiting a little
                 setTimeout(resolve, options.bootDuration);
             })

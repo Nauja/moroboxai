@@ -203,25 +203,7 @@ function listZipFiles(root: string, callback: (err: any | null, files: string[])
     });
 }
 
-interface ILocalFileServer {
-    /**
-     * Port we are listening to.
-     * @returns {number} Port number
-     */
-    readonly port : number;
-
-    /**
-     * Build the absolute URL to a file served by this server.
-     *
-     * ```js
-     * console.log(server.href('index.html'))
-     * // http://host:port/index.html
-     * ```
-     * @param {string} url - Relative URL.
-     * @returns {string} Absolute URL.
-     */
-    href(url: string) : string;
-
+interface ILocalFileServer extends MoroboxAIGameSDK.IFileServer {
     /**
      * Set the list of games whose static files are served by this server.
      * @param {model.GameZip[]} games - List of games.
@@ -245,9 +227,7 @@ interface ILocalFileServer {
  * This is also used to serve the files bundled in games
  * archives.
  */
-class LocalFileServer implements ILocalFileServer {
-    // http server
-    private _server: http.Server;
+class LocalFileServer extends MoroboxAIGameSDK.FileServer implements ILocalFileServer {
     // list of games for serving static files
     private _games: any;
     // loaded game
@@ -255,25 +235,11 @@ class LocalFileServer implements ILocalFileServer {
     private _gameZip: StreamZip;
 
     constructor() {
-        this._server = http.createServer(
-            (req, res) => this._route(req.url, res)
-        );
+        super((req, res) => this._route(req.url, res));
     }
 
     public get port() : number {
-        return (this._server.address() as net.AddressInfo).port;
-    }
-
-    /**
-     * Start server on a random local port.
-     * @param {function} callback - Called when server is started.
-     */
-    public listen(callback?: () => void) {
-        return this._server.listen(0, '127.0.0.1', callback);
-    }
-
-    public href(url: string) : string {
-        return `http://127.0.0.1:${this.port}/${url}`;
+        return this.address.port;
     }
 
     public setGames(games: model.GameZip[]): void {
@@ -383,34 +349,56 @@ class LocalFileServer implements ILocalFileServer {
 }
 
 /**
+ * Fake file server used for games.
+ *
+ * This wraps the local file server used by MoroboxAI but
+ * only allows requests to http://host:port/game/path URLs.
+ */
+class GameFileServer implements MoroboxAIGameSDK.IFileServer
+{
+    private _gameInstance: model.IGameInstance;
+
+    constructor(gameInstance: model.IGameInstance) {
+        this._gameInstance = gameInstance;
+    }
+
+    public get address(): net.AddressInfo {
+        return {
+            address: '127.0.0.1',
+            family: '',
+            port: 0
+        };
+    }
+
+    public href(url: string): string {
+        return this._gameInstance.gameHref(url);
+    }
+
+    ready(callback: () => void): void {
+        callback();
+    }
+
+    close(callback?: (err: any) => void): void {
+        callback(new Error('invalid method'));
+    }
+}
+
+/**
  * Embedded version of the SDK.
  *
  * This is meant to be run inside of MoroboxAI.
  */
 class EmbeddedGameSDK extends MoroboxAIGameSDK.GameSDKBase {
     private _gameInstance: model.IGameInstance;
-    private _address: net.AddressInfo;
 
     constructor(gameInstance: model.IGameInstance) {
-        super();
+        const aiServer = new MoroboxAIGameSDK.AIServer();
+        aiServer.listen();
+        super({
+            aiServer,
+            fileServer: new GameFileServer(gameInstance)
+        });
         this._gameInstance = gameInstance;
-        this._address = {
-            address: '127.0.0.1',
-            family: 'http',
-            port: gameInstance.port
-        };
-    }
-
-    public get address(): net.AddressInfo {
-        return this._address;
-    }
-
-    public notifyReady(): void {
-        super.notifyReady();
-    }
-
-    public href(id: string): string {
-        return this._gameInstance.gameHref(id);
     }
 }
 
