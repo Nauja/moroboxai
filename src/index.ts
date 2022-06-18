@@ -5,6 +5,7 @@ import { hideBin } from 'yargs/helpers';
 
 const WINDOW_WIDTH: number = 640;
 const WINDOW_HEIGHT: number = 360;
+const CPU_DIR: string = './cpu';
 const GAMES_DIR: string = './games';
 const MAIN_CSS: string = 'assets/theme.css';
 const BOOT_MIN_DURATION: number = 4000;
@@ -33,6 +34,11 @@ const argv = yargs(hideBin(process.argv)).command(
         type: 'number',
         default: WINDOW_HEIGHT
 }).option<string, yargs.Options>(
+    'cpu-dir', {
+        description: 'Directory containing the CPUs',
+        type: 'string',
+        default: CPU_DIR
+}).option<string, yargs.Options>(
     'games-dir', {
         description: 'Directory containing MoroboxAI games',
         type: 'string',
@@ -47,6 +53,11 @@ const argv = yargs(hideBin(process.argv)).command(
         description: 'Forced minimum boot duration',
         type: 'number',
         default: BOOT_MIN_DURATION
+}).option<string, yargs.Options>(
+    'game', {
+        description: 'Selected game',
+        type: 'string',
+        default: undefined
 }).help()
 .alias('help', 'h')
 .argv;
@@ -69,7 +80,9 @@ ElectronApp.on('ready', () => {
         nativeHeight: WINDOW_HEIGHT,
         host: argv.host,
         port: argv.port,
+        cpuDir: argv.cpuDir,
         gamesDir: argv.gamesDir,
+        game: argv.game,
         mainCss: argv.mainCss,
         bootDuration: argv.bootDuration
     })}});

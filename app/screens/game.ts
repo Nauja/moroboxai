@@ -1,10 +1,6 @@
-import * as concat from 'concat-stream';
-import * as http from 'http';
-import * as model from '../model';
+import * as MoroboxAIPlayer from 'moroboxai-player-web';
+import { IGameInstance } from '../engine';
 import { createElement } from '../model';
-import * as monad from '../monad';
-
-const BOOT_FUNCTION_PREFIX: string = 'moroboxai:gameboot:';
 
 /**
  * This screen takes care of game boot.
@@ -41,42 +37,21 @@ export class Screen {
         this.root.appendChild(this._script);
     }
 
-    public init(gameInstance: model.IGameInstance, game: model.GameZip, ready?: () => void): void {
+    public init(gameInstance: IGameInstance, gameId: string, ready?: () => void): void {
         // set ready right now to transition to this screen
         if (ready !== undefined) {
             ready();
         }
 
         // start loading the game into memory
-        gameInstance.loadGame(game, err => {
-            if (err) {
-                console.error('Failed to load game');
-                return;
-            }
-
-            // wait to receive the boot function
-            this._messageListener = evt => {
-                const data: string = evt.data as string;
-                if (data !== undefined && data.startsWith(BOOT_FUNCTION_PREFIX)) {
-                    // call boot function in iframe to initialize the game
-                    //this._iframe.contentWindow[data.substr(BOOT_FUNCTION_PREFIX.length)]();
-                }
-            };
-            window.addEventListener('message', this._messageListener, true);
-            // splashart displayed in background while loading game
-            this._background.style.backgroundImage = `url("${gameInstance.gameHref(game.header.splashart)}")`;
-            // embedded the game view into our iframe
-            console.log(gameInstance.gameHref(game.header.boot));
-            http.get(gameInstance.gameHref(game.header.boot), res => {
-                res.setEncoding('utf8');
-                res.pipe(concat({ encoding: 'string' }, remoteSrc => {
-                    const boot = eval(remoteSrc);
-                    boot({
-                        root: this._background,
-                        sdk: new monad.EmbeddedGameSDK(gameInstance)
-                    });
-                }));
+        gameInstance.loadGame(gameId).then(() => {
+            MoroboxAIPlayer.init(this._background, {
+                url: gameInstance.gameHref('/'),
+                autoPlay: true,
+                resizable: true
             });
+        }).catch(() => {
+            console.error('Failed to load game, see errors above');
         });
     }
 

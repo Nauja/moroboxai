@@ -1,11 +1,19 @@
+import * as engine from './engine';
+import { GameInstance } from './engine';
+import { ProgramOptions } from './model';
+import { IGameLoader } from './monad/game';
+import { ILocalFileServer } from './monad/server';
+
 document.addEventListener('DOMContentLoaded', event => {
     const path = require('path');
     const querystring = require('querystring');
-    const monad = require('./monad');
+    const model = require('./model');
+    const monadgame = require('./monad/game');
+    const monadserver = require('./monad/server');
 
     // get back command line arguments from URL query
     const query = querystring.parse(global.location.search);
-    const options = JSON.parse(query['?options'] as string);
+    const options: ProgramOptions = JSON.parse(query['?options'] as string);
 
     /**
      * Handle resizing the window.
@@ -21,7 +29,7 @@ document.addEventListener('DOMContentLoaded', event => {
     window.addEventListener('resize', resize);
     resize();
 
-    function injectAssets(fileServer, callback: () => void) : void {
+    function injectAssets(fileServer: ILocalFileServer, callback: () => void) : void {
         Promise.all([
             new Promise((resolve, reject) => {
                 // inject main CSS dynamically in head
@@ -72,12 +80,13 @@ document.addEventListener('DOMContentLoaded', event => {
      * * Read games headers from game directory.
      * @param {function} callback - Function called when done.
      */
-    function boot(callback: (fileServer, games) => void): void {
-        const fileServer = new monad.LocalFileServer();
-        let loadedGames;
+    function boot(callback: (fileServer: ILocalFileServer, games: IGameLoader[]) => void): void {
+        const fileServer = new monadserver.LocalFileServer();
+        const games = new Array<IGameLoader>();
+
         Promise.all([
-            new Promise((resolve, _) => {
-                // initialize local file server
+            new Promise<void>((resolve, _) => {
+                // task for initializing the local file server
                 fileServer.ready(() => {
                     console.log(`LocalFileServer started on port ${fileServer.port}`);
                     // load external assets
@@ -85,71 +94,24 @@ document.addEventListener('DOMContentLoaded', event => {
                 });
                 fileServer.listen();
             }),
-            new Promise((resolve, _) => {
-                // load games headers
-                loadGames(options.gamesDir, games => {
-                    loadedGames = games;
-                    console.log(`Loaded ${games.length} game(s)`);
+            new Promise<void>((resolve, _) => {
+                // task for listing all the games
+                monadgame.listGames(options.gamesDir, (game: IGameLoader) => {
+                    games.push(game);
+                }).then(() => {
+                    console.log(`Found ${games.length} game(s)`);
                     resolve();
                 });
             }),
-            new Promise((resolve, _) => {
+            new Promise<void>((resolve, _) => {
                 // force waiting a little
                 setTimeout(resolve, options.bootDuration);
             })
         ]).then(() => {
-            callback(fileServer, loadedGames);
-        }).catch(() => {
-            console.error('Boot failed, see error above');
-        });
-    }
-
-    /**
-     * Load all valid games from a directory.
-     *
-     * ```js
-     * loadGames('/some/dir', games => {
-     *     console.log(games);
-     * });
-     * ```
-     *
-     * Each game is bundled in a .zip file containing a header.json
-     * file describing the game.
-     * @param {string} root - Games directory.
-     * @param {function} callback - Called on completion.
-     */
-    function loadGames(root: string, callback: (games) => void) {
-        const games: Array<any> = Array<any>();
-
-        console.log(`Loading games from "${root}" directory...`);
-        // list .zip files contained in directory
-        monad.listZipFiles(root, (err, files) => {
-            // an IO error occured
-            if (err !== undefined) {
-                console.error(`Failed to load games: ${err}`);
-                callback(games);
-                return;
-            }
-
-            // load headers from .zip files
-            monad.loadGameZips(
-                files.map(_ => path.join(root, _)),
-                (e, game) => {
-                    // incorrect game, discard
-                    if (e) {
-                        console.error(`Failed to load game ${game.file}: ${e}`);
-                        return;
-                    }
-
-                    // correct game, keep it
-                    console.log(`Loaded game ${game.header.title} from ${game.file}`);
-                    games.push(game);
-                },
-                () => {
-                    // done
-                    callback(games);
-                }
-            );
+            callback(fileServer, games);
+        }).catch((e) => {
+            console.error(e);
+            console.error('Boot failed, see errors above');
         });
     }
 
@@ -157,8 +119,7 @@ document.addEventListener('DOMContentLoaded', event => {
     boot((fileServer, games) => {
         console.log('Boot done');
         // really start moroboxai
-        const engine = require('./engine');
-        const gameInstance = new engine.GameInstance();
+        const gameInstance: GameInstance = new engine.GameInstance();
         gameInstance.init(fileServer, games, options, () => {
             // ready, destroy boot screen
             document.getElementById('mai_boot_screen').remove();

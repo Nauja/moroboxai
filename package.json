@@ -1,7 +1,8 @@
 {
   "name": "moroboxai",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "description": "Standalone version of MoroboxAI",
+  "author": "moroboxai",
   "main": "build/index.js",
   "scripts": {
     "lint:gulp": "gulp lint",
@@ -14,50 +15,53 @@
     "web": "npm run build:web",
     "serve": "webpack-dev-server --hot --config webpack.config.js",
     "servebuild": "cross-env NODE_ENV=production webpack",
-    "start": "electron .",
+    "start": "electron . --games-dir . --game sample",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nauja/moroboxai.git"
+    "url": "git+https://github.com/moroboxai/moroboxai.git"
   },
-  "author": "Yahiko <yahiko.ninja@gmail.com>",
+  "keywords": [],
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/moroboxai/moroboxai/issues"
+  },
+  "homepage": "https://github.com/moroboxai/moroboxai#readme",
   "devDependencies": {
+    "@types/node": "^14.11.8",
     "@types/yargs": "^15.0.9",
     "clean-webpack-plugin": "^3.0.0",
+    "concat-stream": "^2.0.0",
     "copy-webpack-plugin": "^5.1.1",
     "cross-env": "^7.0.2",
     "electron": "^10.1.5",
     "electron-builder": "^22.9.1",
     "file-system": "^2.2.2",
-    "mocha": "^7.1.1",
-    "mocha-loader": "^5.0.0",
-    "ts-loader": "^6.2.2",
-    "typescript": "^3.9.7",
-    "webpack": "^4.44.2",
-    "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.0"
-  },
-  "dependencies": {
-    "@types/node": "^14.11.8",
-    "concat-stream": "^2.0.0",
-    "del": "^6.0.0",
-    "express-static-zip": "^0.2.2",
     "gulp": "^4.0.2",
     "gulp-sourcemaps": "^2.6.5",
     "gulp-tslint": "^8.1.4",
     "gulp-typescript": "^6.0.0-alpha.1",
+    "moroboxai-game-sdk": "0.1.0-alpha.14",
+    "moroboxai-player-web": "0.1.0-alpha.10",
+    "ts-loader": "^6.2.2",
+    "tslint": "^6.1.3",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0",
+    "webpack-node-externals": "^2.5.2",
+    "webpack-stream": "^6.1.0"
+  },
+  "dependencies": {
+    "del": "^6.0.0",
+    "express-static-zip": "^0.2.2",
     "mime-types": "^2.1.27",
-    "moroboxai-game-sdk": "0.1.0-alpha.6",
     "node-stream-zip": "^1.12.0",
     "pixi.js": "^5.3.3",
     "require-from-url": "^3.1.3",
-    "tslint": "^6.1.3",
-    "tslint-eslint-rules": "^5.4.0",
-    "webpack-node-externals": "^2.5.2",
-    "webpack-stream": "^6.1.0",
+    "yaml": "^2.1.1",
     "yargs": "^16.1.1"
   },
   "build": {

@@ -1,23 +1,26 @@
+import { GameHeader } from 'moroboxai-game-sdk';
+import { IGameInstance } from '../engine';
 import * as model from '../model';
 import { createElement } from '../model';
+import { IGameLoader } from '../monad/game';
 
 class GameListItem {
     public readonly root: HTMLElement;
-    public readonly data: model.GameZip;
+    public readonly game: GameHeader;
 
-    constructor(gameInstance: model.IGameInstance, data: model.GameZip) {
+    constructor(gameInstance: IGameInstance, game: GameHeader) {
         this.root = createElement('article', {
             class: 'mai_item'
         });
-        this.data = data;
+        this.game = game;
 
         const img = createElement('img', {
             class: 'mai-icon'
         });
-        img.setAttribute('src', gameInstance.gamesHref(data, 'icon'));
+        img.setAttribute('src', gameInstance.gamesHref(game.id, 'icon'));
         this.root.appendChild(img);
         this.root.appendChild(createElement('header', {
-            text: data.header.title
+            text: game.title
         }));
         this.root.appendChild(createElement('body', {
             text: '&nbsp;-&nbsp;1.0.0'
@@ -35,20 +38,20 @@ class GameListItem {
 
 class GameList {
     public readonly root: HTMLElement;
-    public onGameSelected: (game: model.GameZip) => void;
-    public onGameClicked: (game: model.GameZip) => void;
-    private _gameInstance: model.IGameInstance;
+    public onGameSelected: (game: GameHeader) => void;
+    public onGameClicked: (game: GameHeader) => void;
+    private _gameInstance: IGameInstance;
     private _items: GameListItem[];
     private _selectedIndex: number;
 
-    constructor(gameInstance: model.IGameInstance) {
+    constructor(gameInstance: IGameInstance) {
         this.root = createElement('div', {
             id: 'mai_game_list'
         });
         this._gameInstance = gameInstance;
     }
 
-    public update(games: model.GameZip[]) {
+    public update(games: GameHeader[]) {
         // clear old content
         this.root.innerHTML = '';
         this._items = new Array<GameListItem>();
@@ -85,18 +88,18 @@ class GameList {
         this._selectedIndex = index;
         this._items[index].setSelected(true);
         if (this.onGameSelected !== undefined) {
-            this.onGameSelected(this._items[index].data);
+            this.onGameSelected(this._items[index].game);
         }
     }
 }
 
 class GameInfo {
     public readonly root: HTMLElement;
-    private _gameInstance: model.IGameInstance;
+    private _gameInstance: IGameInstance;
     private _img: HTMLElement;
     private _description: HTMLElement;
 
-    constructor(gameInstance: model.IGameInstance) {
+    constructor(gameInstance: IGameInstance) {
         this.root = createElement('div', {
             id: 'mai_game_info'
         });
@@ -113,16 +116,16 @@ class GameInfo {
         this.root.appendChild(this._description);
     }
 
-    public update(game: model.GameZip) {
-        this._img.setAttribute('src', this._gameInstance.gamesHref(game, 'preview'));
-        this._description.innerHTML = game.header.description;
+    public update(game: GameHeader) {
+        this._img.setAttribute('src', this._gameInstance.gamesHref(game.id, 'preview'));
+        this._description.innerHTML = game.description;
     }
 }
 
 export class Screen {
     public readonly root: HTMLElement;
-    public onLaunchGame: (game: model.GameZip) => void;
-    private _gameInstance: model.IGameInstance;
+    public onLaunchGame: (id: string) => void;
+    private _gameInstance: IGameInstance;
     private _gameList: GameList;
     private _gameInfo: GameInfo;
 
@@ -133,7 +136,7 @@ export class Screen {
         });
     }
 
-    public init(gameInstance: model.IGameInstance, ready?: () => void): void {
+    public init(gameInstance: IGameInstance, ready?: () => void): void {
         this._gameInstance = gameInstance;
         this._gameList = new GameList(gameInstance);
         this._gameInfo = new GameInfo(gameInstance);
@@ -155,13 +158,13 @@ export class Screen {
         }
     }
 
-    private _onGameSelected(game: model.GameZip) {
+    private _onGameSelected(game: GameHeader) {
         this._gameInfo.update(game);
     }
 
-    private _onGameClicked(game: model.GameZip) {
+    private _onGameClicked(game: GameHeader) {
         if (this.onLaunchGame !== undefined) {
-            this.onLaunchGame(game);
+            this.onLaunchGame(game.id);
         }
     }
 }
