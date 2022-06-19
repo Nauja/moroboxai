@@ -1,13 +1,13 @@
 import * as engine from './engine';
 import { GameInstance } from './engine';
 import { ProgramOptions } from './model';
+import { ICPULoader } from './monad/cpu';
 import { IGameLoader } from './monad/game';
-import { ILocalFileServer } from './monad/server';
+import { ILocalFileServer, LocalFileServer } from './monad/server';
 
 document.addEventListener('DOMContentLoaded', event => {
-    const path = require('path');
     const querystring = require('querystring');
-    const model = require('./model');
+    const monadcpu = require('./monad/cpu');
     const monadgame = require('./monad/game');
     const monadserver = require('./monad/server');
 
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', event => {
 
     function injectAssets(fileServer: ILocalFileServer, callback: () => void) : void {
         Promise.all([
-            new Promise((resolve, reject) => {
+            new Promise<void>((resolve, reject) => {
                 // inject main CSS dynamically in head
                 const item = document.createElement('link');
                 item.rel = 'stylesheet';
@@ -40,16 +40,16 @@ document.addEventListener('DOMContentLoaded', event => {
                 item.onload = () => {
                     // everything fine
                     console.log(`Loaded ${options.mainCss}`);
-                    callback();
+                    resolve();
                 };
                 item.onerror = (evt, source, lineno, colno, error) => {
                     // some error
                     console.error(`Error loading ${options.mainCss}: ${error}`);
-                    callback();
+                    resolve();
                 };
                 document.head.appendChild(item);
             }),
-            new Promise((resolve, reject) => {
+            new Promise<void>((resolve, reject) => {
                 // inject font dynamically in head
                 const item = document.createElement('style');
                 item.innerText = '@font-face {' +
@@ -59,16 +59,36 @@ document.addEventListener('DOMContentLoaded', event => {
                 item.onload = () => {
                     // everything fine
                     console.log(`Loaded font 8bit`);
-                    callback();
+                    resolve();
                 };
                 item.onerror = (evt, source, lineno, colno, error) => {
                     // some error
                     console.error(`Error loading font 8bit: ${error}`);
-                    callback();
+                    resolve();
                 };
                 document.head.appendChild(item);
             })
         ]).then(callback);
+    }
+
+    function injectCPUs(fileServer: ILocalFileServer, cpus: ICPULoader[], callback: () => void) : void {
+        Promise.all(cpus.map(_ => new Promise<void>((resolve) => {
+            // inject main CSS dynamically in head
+            const item = document.createElement('script');
+            item.type = 'text/javascript';
+            item.src = fileServer.href(`cpu/${_.file}`);
+            item.onload = () => {
+                // everything fine
+                console.log(`Loaded ${_.file}`);
+                resolve();
+            };
+            item.onerror = (evt, source, lineno, colno, error) => {
+                // some error
+                console.error(`Error loading ${_.file}: ${error}`);
+                resolve();
+            };
+            document.head.appendChild(item);
+        }))).then(callback);
     }
 
     /**
@@ -80,20 +100,33 @@ document.addEventListener('DOMContentLoaded', event => {
      * * Read games headers from game directory.
      * @param {function} callback - Function called when done.
      */
-    function boot(callback: (fileServer: ILocalFileServer, games: IGameLoader[]) => void): void {
-        const fileServer = new monadserver.LocalFileServer();
+    function boot(callback: (fileServer: ILocalFileServer, games: IGameLoader[], cpus: ICPULoader[]) => void): void {
+        const fileServer: LocalFileServer = new monadserver.LocalFileServer();
         const games = new Array<IGameLoader>();
+        const cpus = new Array<ICPULoader>();
 
         Promise.all([
-            new Promise<void>((resolve, _) => {
-                // task for initializing the local file server
-                fileServer.ready(() => {
-                    console.log(`LocalFileServer started on port ${fileServer.port}`);
-                    // load external assets
-                    injectAssets(fileServer, resolve);
-                });
-                fileServer.listen();
-            }),
+            Promise.all([
+                new Promise<void>((resolve, _) => {
+                    // task for initializing the local file server
+                    fileServer.ready(() => {
+                        console.log(`LocalFileServer started on port ${fileServer.port}`);
+                        // load external assets
+                        injectAssets(fileServer, resolve);
+                    });
+                    fileServer.listen();
+                }),
+                new Promise<void>((resolve, _) => {
+                    // task for listing all the games
+                    monadcpu.listCPUs(options.cpuDir, (cpu: ICPULoader) => {
+                        cpus.push(cpu);
+                    }).then(() => {
+                        console.log(`Found ${cpus.length} cpu(s)`);
+                        fileServer.setCPUs(cpus);
+                        injectCPUs(fileServer, cpus, resolve);
+                    });
+                })
+            ]),
             new Promise<void>((resolve, _) => {
                 // task for listing all the games
                 monadgame.listGames(options.gamesDir, (game: IGameLoader) => {
@@ -108,7 +141,7 @@ document.addEventListener('DOMContentLoaded', event => {
                 setTimeout(resolve, options.bootDuration);
             })
         ]).then(() => {
-            callback(fileServer, games);
+            callback(fileServer, games, cpus);
         }).catch((e) => {
             console.error(e);
             console.error('Boot failed, see errors above');
@@ -116,7 +149,7 @@ document.addEventListener('DOMContentLoaded', event => {
     }
 
     // start boot process
-    boot((fileServer, games) => {
+    boot((fileServer, games, cpus) => {
         console.log('Boot done');
         // really start moroboxai
         const gameInstance: GameInstance = new engine.GameInstance();

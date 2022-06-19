@@ -1,5 +1,5 @@
 import { GameHeader } from 'moroboxai-game-sdk';
-import StreamZip = require('node-stream-zip');
+import * as StreamZip from 'node-stream-zip';
 import { ProgramOptions } from './model';
 import { IGameLoader } from './monad/game';
 import { ILocalFileServer } from './monad/server';
@@ -63,7 +63,7 @@ export class GameInstance implements IGameInstance {
         // initialize home screen
         if (options.game !== undefined) {
             if (options.game in this._gamesById) {
-                this._launchGame(options.game);
+                this._launchGame(options.game, ready);
                 return;
             }
         }
@@ -120,11 +120,15 @@ export class GameInstance implements IGameInstance {
         });
     }
 
-    private _launchGame(id: string) {
+    private _launchGame(id: string, ready?: () => void) {
         console.log(`Launching game ${id}...`);
         this._gameScreen.init(this, id, () => {
             this._homeScreen.root.remove();
             document.body.appendChild(this._gameScreen.root);
+
+            if (ready !== undefined) {
+                ready();
+            }
         });
     }
 }

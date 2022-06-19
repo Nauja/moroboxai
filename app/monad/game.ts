@@ -145,8 +145,7 @@ export function listGames(root: string, gameFound: (game: IGameLoader) => void):
         fs.readdir(root, (err, files) => {
             // couldn't access the directory
             if (err) {
-                reject(err);
-                return;
+                return reject(err);
             }
 
             const tasks = new Array<Promise<void>>();

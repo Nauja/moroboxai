@@ -3,8 +3,8 @@ import { app as ElectronApp, BrowserWindow } from 'electron';
 import * as yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-const WINDOW_WIDTH: number = 640;
-const WINDOW_HEIGHT: number = 360;
+const WINDOW_WIDTH: number = 512;
+const WINDOW_HEIGHT: number = 512;
 const CPU_DIR: string = './cpu';
 const GAMES_DIR: string = './games';
 const MAIN_CSS: string = 'assets/theme.css';

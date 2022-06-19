@@ -3,6 +3,8 @@ build/
 unpack/
 *.bat
 games/
+sample/
+cpu/
 
 # Logs
 logs
@@ -120,3 +122,4 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+*.exe

@@ -1,8 +1,0 @@
-{
-    "id": "sample",
-    "assets": [
-        {"id": "tilemap", "path": "tilemap.png", "mode": "16x16"}
-    ],
-    "boot": "Moroxel8AI",
-    "main": "game.lua"
-}

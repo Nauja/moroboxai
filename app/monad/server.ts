@@ -3,6 +3,7 @@ import * as http from 'http';
 import * as mime from 'mime-types';
 import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
 import * as net from 'net';
+import { ICPULoader } from './cpu';
 import { IGameLoader } from './game';
 
 /**
@@ -21,6 +22,8 @@ function getUrl(url: string): Promise<string> {
 }
 
 export interface ILocalFileServer extends MoroboxAIGameSDK.IFileServer {
+    setCPUs(cpus: ICPULoader[]): void;
+
     /**
      * Set the list of games whose static files are served by this server.
      * @param {IGameLoader[]} games - List of games.
@@ -173,6 +176,8 @@ export class FileServer extends ServerWrapper implements MoroboxAIGameSDK.IFileS
  * archives.
  */
 export class LocalFileServer extends FileServer implements ILocalFileServer {
+    // list of cpus for serving static files
+    private _cpusById: {[key: string]: ICPULoader};
     // list of games for serving static files
     private _gamesById: {[key: string]: IGameLoader};
     // loaded game
@@ -182,24 +187,36 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
         super((req, res) => this._route(req.url, res));
     }
 
-    public get port(): number {
+    get port(): number {
         return this.address.port;
     }
 
-    public setGames(games: IGameLoader[]): void {
-        this._gamesById = {};
+    setCPUs(cpus: ICPULoader[]): void {
+        this._cpusById = {};
 
-        games.forEach(game => {
-            this._gamesById[game.header.id] = game;
+        cpus.forEach(_ => {
+            this._cpusById[_.file] = _;
         });
     }
 
-    public setGame(id: string): void {
+    setGames(games: IGameLoader[]): void {
+        this._gamesById = {};
+
+        games.forEach(_ => {
+            this._gamesById[_.header.id] = _;
+        });
+    }
+
+    setGame(id: string): void {
         if (!(id in this._gamesById)) {
             this._game = undefined;
         } else {
             this._game = this._gamesById[id];
         }
+    }
+
+    cpuHref(cpu: ICPULoader): string {
+        return `cpu/${cpu.file}`;
     }
 
     private _route(url: string, res: http.ServerResponse): void {
@@ -212,6 +229,12 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
         result = url.match(/^\/game\/(?<file>.*)$/);
         if (result) {
             this._routeGame(result.groups.file, res);
+            return;
+        }
+
+        result = url.match(/^\/cpu\/(?<file>.*)$/);
+        if (result) {
+            this._routeCPU(result.groups.file, res);
             return;
         }
 
@@ -297,6 +320,28 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
                 res.writeHead(404);
                 res.end(undefined);
             }
+        });
+    }
+
+    /**
+     * Route for serving static files from loaded game .zip file.
+     * @param {string} file - Requested static file.
+     * @param {http.ServerResponse} res - Response.
+     */
+    private _routeCPU(file: string, res: http.ServerResponse): void {
+        const cpu = this._cpusById[file];
+        if (cpu === undefined) {
+            res.statusCode = 404;
+            res.end('404: File Not Found');
+            return;
+        }
+
+        res.setHeader('Content-Type', mime.lookup(file));
+        cpu.load().then(data => {
+            res.end(data);
+        }).catch(() => {
+            res.statusCode = 404;
+            res.end('404: File Not Found');
         });
     }
 }

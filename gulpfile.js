@@ -52,11 +52,28 @@ gulp.task('build', () => {
 
 	const externals = [];
 	if (!argv.web) {
-		externals.push(nodeExternals());
+		externals.push(
+			function () {
+				var arg1 = arguments[0];
+				var arg2 = arguments[1];
+				var arg3 = arguments[2];
+
+				if (/^moroboxai.*$/.test(arg2)) {
+					return arg3();
+				}
+
+				if (/^moroxel.*$/.test(arg2)) {
+					return arg3();
+				}
+
+				nodeExternals()(arg1, arg2, arg3);
+			}
+		);
 	}
 	
 	const renderCompile = gulp.src('./app/index.ts')
     	.pipe(gulpWebpack({
+			entry: ['./app/index.ts'],
 			module: {
 				rules: [
 					{
@@ -65,6 +82,7 @@ gulp.task('build', () => {
 					},
 				]
 			},
+			mode: 'development',
 			resolve: {
 				modules: ['node_modules', 'app'],
 				extensions: ['.tsx', '.ts', '.js']
@@ -72,7 +90,12 @@ gulp.task('build', () => {
 			output: {
 				filename: 'boot.js'
 			},
-			externals: externals,
+			externals: [
+				...externals,
+				{
+					MoroboxAIPlayer: 'moroboxai-player-web'
+				}
+			],
 			target: argv.web ? 'web' : 'electron-renderer',
 			devtool: 'inline-source-map'
 		}, webpack))
