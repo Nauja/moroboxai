@@ -1,10 +1,10 @@
-import * as fs from 'fs';
-import * as http from 'http';
-import * as mime from 'mime-types';
-import * as MoroboxAIGameSDK from 'moroboxai-game-sdk';
-import * as net from 'net';
-import { ICPULoader } from './cpu';
-import { IGameLoader } from './game';
+import * as fs from "fs";
+import * as http from "http";
+import * as mime from "mime-types";
+import * as MoroboxAIGameSDK from "moroboxai-game-sdk";
+import * as net from "net";
+import { ICPULoader } from "./cpu";
+import { IGameLoader } from "./game";
 
 /**
  * Fetch data from an URL.
@@ -12,13 +12,15 @@ import { IGameLoader } from './game';
  * @returns {Promise} Data when ready
  */
 function getUrl(url: string): Promise<string> {
-    return fetch(url).then(response => {
-        if (!response.ok) {
-            return Promise.reject(response.status);
-        }
+    return fetch(url)
+        .then((response) => {
+            if (!response.ok) {
+                return Promise.reject(response.status);
+            }
 
-        return response.blob();
-    }).then(blob => blob.text());
+            return response.blob();
+        })
+        .then((blob) => blob.text());
 }
 
 export interface ILocalFileServer extends MoroboxAIGameSDK.IFileServer {
@@ -84,7 +86,7 @@ class ServerWrapper implements MoroboxAIGameSDK.IServer {
      * @param {number} port - Port
      */
     public listen(port: number = 0): void {
-        this._server.listen(port, '127.0.0.1', () => {
+        this._server.listen(port, "127.0.0.1", () => {
             this._notifyReady();
         });
     }
@@ -104,7 +106,7 @@ class ServerWrapper implements MoroboxAIGameSDK.IServer {
     }
 
     public close(callback?: (err: any) => void): void {
-        this._server.close(e => {
+        this._server.close((e) => {
             this._isReady = false;
 
             if (callback !== undefined) {
@@ -117,13 +119,19 @@ class ServerWrapper implements MoroboxAIGameSDK.IServer {
 /**
  * Implementation of the local file server.
  */
-export class FileServer extends ServerWrapper implements MoroboxAIGameSDK.IFileServer {
+export class FileServer
+    extends ServerWrapper
+    implements MoroboxAIGameSDK.IFileServer
+{
     /**
      * Default route for serving local files.
      * @param {http.IncomingMessage} req - Request
      * @param {http.ServerResponse} res - Response
      */
-    public static serveLocalFiles(req: http.IncomingMessage, res: http.ServerResponse): void {
+    public static serveLocalFiles(
+        req: http.IncomingMessage,
+        res: http.ServerResponse
+    ): void {
         // invalid URL
         if (req.url === undefined) {
             res.writeHead(404);
@@ -151,9 +159,21 @@ export class FileServer extends ServerWrapper implements MoroboxAIGameSDK.IFileS
      * @param {Function} requestListener - Custom route for serving files
      */
     constructor(requestListener?: http.RequestListener | undefined) {
-        super(http.createServer(
-            requestListener !== undefined ? requestListener : FileServer.serveLocalFiles
-        ));
+        super(
+            http.createServer(
+                requestListener !== undefined
+                    ? requestListener
+                    : FileServer.serveLocalFiles
+            )
+        );
+    }
+
+    get url(): string {
+        return "";
+    }
+
+    get baseUrl(): string {
+        return "";
     }
 
     public href(path: string): string {
@@ -177,14 +197,22 @@ export class FileServer extends ServerWrapper implements MoroboxAIGameSDK.IFileS
  */
 export class LocalFileServer extends FileServer implements ILocalFileServer {
     // list of cpus for serving static files
-    private _cpusById: {[key: string]: ICPULoader};
+    private _cpusById: { [key: string]: ICPULoader };
     // list of games for serving static files
-    private _gamesById: {[key: string]: IGameLoader};
+    private _gamesById: { [key: string]: IGameLoader };
     // loaded game
     private _game?: IGameLoader;
 
     constructor() {
         super((req, res) => this._route(req.url, res));
+    }
+
+    get url(): string {
+        return "";
+    }
+
+    get baseUrl(): string {
+        return "";
     }
 
     get port(): number {
@@ -194,7 +222,7 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
     setCPUs(cpus: ICPULoader[]): void {
         this._cpusById = {};
 
-        cpus.forEach(_ => {
+        cpus.forEach((_) => {
             this._cpusById[_.file] = _;
         });
     }
@@ -202,7 +230,7 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
     setGames(games: IGameLoader[]): void {
         this._gamesById = {};
 
-        games.forEach(_ => {
+        games.forEach((_) => {
             this._gamesById[_.header.id] = _;
         });
     }
@@ -248,13 +276,13 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
      */
     private _routeAssets(url: string, res: http.ServerResponse): void {
         fs.readFile(`./${url}`, (err, data) => {
-            res.setHeader('Content-Type', mime.lookup(url));
+            res.setHeader("Content-Type", mime.lookup(url));
             if (err) {
                 res.statusCode = 404;
-                res.end('404: File Not Found');
-            } else if (url.endsWith('.css')) {
+                res.end("404: File Not Found");
+            } else if (url.endsWith(".css")) {
                 res.end(data);
-            } else if (url.endsWith('.TTF')) {
+            } else if (url.endsWith(".TTF")) {
                 res.end(data);
             }
         });
@@ -266,21 +294,25 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
      * @param {string} file - Requested static file.
      * @param {http.ServerResponse} res - Response.
      */
-    private _routeGames(id: string, file: string, res: http.ServerResponse): void {
+    private _routeGames(
+        id: string,
+        file: string,
+        res: http.ServerResponse
+    ): void {
         const game: IGameLoader = this._gamesById[id];
         if (game === undefined) {
             res.writeHead(404);
             return;
         }
 
-        if (file === 'icon') {
-            game.loadIcon().then(data => {
-                res.setHeader('Content-Type', mime.lookup(data));
+        if (file === "icon") {
+            game.loadIcon().then((data) => {
+                res.setHeader("Content-Type", mime.lookup(data));
                 res.end(data);
             });
-        } else if (file === 'preview') {
-            game.loadPreview().then(data => {
-                res.setHeader('Content-Type', mime.lookup(data));
+        } else if (file === "preview") {
+            game.loadPreview().then((data) => {
+                res.setHeader("Content-Type", mime.lookup(data));
                 res.end(data);
             });
         }
@@ -293,26 +325,28 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
      */
     private _routeGame(file: string, res: http.ServerResponse): void {
         console.log(file);
-        res.setHeader('Content-Type', mime.lookup(file));
+        res.setHeader("Content-Type", mime.lookup(file));
         if (this._game === undefined) {
-            console.error('no game');
+            console.error("no game");
             res.writeHead(404);
             res.end(undefined);
             return;
         }
 
-        if (file === 'index.html') {
+        if (file === "index.html") {
             const bootHref = this.href(`game/${this._game.header.boot}`);
 
-            res.end('<html>' +
-                `<body data-fileserver-url="${this.href('')}">` +
-                '</body>' +
-                `<script type="text/javascript" src="${bootHref}"></script>` +
-                '</html>');
+            res.end(
+                "<html>" +
+                    `<body data-fileserver-url="${this.href("")}">` +
+                    "</body>" +
+                    `<script type="text/javascript" src="${bootHref}"></script>` +
+                    "</html>"
+            );
             return;
         }
 
-        this._game.loadFile(file).then(data => {
+        this._game.loadFile(file).then((data) => {
             try {
                 res.end(data);
             } catch (_) {
@@ -332,16 +366,18 @@ export class LocalFileServer extends FileServer implements ILocalFileServer {
         const cpu = this._cpusById[file];
         if (cpu === undefined) {
             res.statusCode = 404;
-            res.end('404: File Not Found');
+            res.end("404: File Not Found");
             return;
         }
 
-        res.setHeader('Content-Type', mime.lookup(file));
-        cpu.load().then(data => {
-            res.end(data);
-        }).catch(() => {
-            res.statusCode = 404;
-            res.end('404: File Not Found');
-        });
+        res.setHeader("Content-Type", mime.lookup(file));
+        cpu.load()
+            .then((data) => {
+                res.end(data);
+            })
+            .catch(() => {
+                res.statusCode = 404;
+                res.end("404: File Not Found");
+            });
     }
 }

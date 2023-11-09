@@ -1,0 +1,17 @@
+id: pong
+title: Pong
+previewUrl: assets/preview.png
+date: 2023-01-01
+assets:
+  - name: palette
+    path: palette.png
+  - name: tilemap
+    path: tilemap.png
+  - name: MoroboxAIRetro
+    path: MoroboxAIRetro.fnt
+boot: Moroxel8AI
+main: game.js
+width: 170
+height: 128
+aspectRatio: 170/128
+scale: 0.5

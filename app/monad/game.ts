@@ -1,10 +1,10 @@
-import * as fs from 'fs';
-import { GameHeader } from 'moroboxai-game-sdk';
-import * as StreamZip from 'node-stream-zip';
-import * as path from 'path';
-import * as yaml from 'yaml';
-import * as model from '../model';
-import * as ZipAPI from './zip';
+import * as fs from "fs";
+import { GameHeader } from "moroboxai-game-sdk";
+import * as StreamZip from "node-stream-zip";
+import * as path from "path";
+import * as yaml from "yaml";
+import * as model from "../model";
+import * as ZipAPI from "./zip";
 
 export interface IGameLoader {
     // loaded game header
@@ -38,15 +38,17 @@ class GameFromDirectoryLoader implements IGameLoader {
     }
 
     loadIcon(): Promise<Buffer> {
-        return this.loadFile(this._header.icon);
+        return this.loadFile(this._header.previewUrl);
     }
 
     loadPreview(): Promise<Buffer> {
-        return this.loadFile(this._header.preview);
+        return this.loadFile(this._header.previewUrl);
     }
 
     loadFile(file: string): Promise<Buffer> {
-        return new Promise<Buffer>(resolve => resolve(fs.readFileSync(path.join(this._root, file))));
+        return new Promise<Buffer>((resolve) =>
+            resolve(fs.readFileSync(path.join(this._root, file)))
+        );
     }
 }
 
@@ -68,26 +70,28 @@ class GameFromZipLoader implements IGameLoader {
     }
 
     loadIcon(): Promise<Buffer> {
-        return this.loadFile(this._header.icon);
+        return this.loadFile(this._header.previewUrl);
     }
 
     loadPreview(): Promise<Buffer> {
-        return this.loadFile(this._header.preview);
+        return this.loadFile(this._header.previewUrl);
     }
 
     loadFile(file: string): Promise<Buffer> {
-        return new Promise<Buffer>(resolve => resolve(ZipAPI.readZipEntry(this._zip, file)));
+        return new Promise<Buffer>((resolve) =>
+            resolve(ZipAPI.readZipEntry(this._zip, file))
+        );
     }
 }
 
 export function parseHeader(src: string): GameHeader {
     const header = yaml.parse(src);
     if (header.id === undefined) {
-        throw new Error('skip header without id attribute');
+        throw new Error("skip header without id attribute");
     }
 
     if (header.boot === undefined) {
-        throw new Error('skip header without boot attribute');
+        throw new Error("skip header without boot attribute");
     }
 
     return header as GameHeader;
@@ -99,10 +103,13 @@ export function parseHeader(src: string): GameHeader {
  * @param {function} gameFound - Function called for each game.
  * @returns {Promise} When all games have been processed
  */
-export function listGames(root: string, gameFound: (game: IGameLoader) => void): Promise<void> {
+export function listGames(
+    root: string,
+    gameFound: (game: IGameLoader) => void
+): Promise<void> {
     // check if a zip contains header.json
     function checkZip(file): Promise<void> {
-        return new Promise<void>(resolve => {
+        return new Promise<void>((resolve) => {
             ZipAPI.loadZip(file, (err, zip) => {
                 if (err) {
                     return resolve();
@@ -112,7 +119,7 @@ export function listGames(root: string, gameFound: (game: IGameLoader) => void):
                     const data = ZipAPI.readZipEntry(zip, model.HEADER_NAME);
                     const header = parseHeader(data.toString());
                     gameFound(new GameFromZipLoader(zip, header));
-                } catch(e) {
+                } catch (e) {
                     console.error(e);
                 }
 
@@ -123,7 +130,7 @@ export function listGames(root: string, gameFound: (game: IGameLoader) => void):
 
     // check if a directory contains header.json
     function checkDirectory(file): Promise<void> {
-        return new Promise<void>(resolve => {
+        return new Promise<void>((resolve) => {
             fs.readFile(path.join(file, model.HEADER_NAME), (err, data) => {
                 if (err) {
                     return resolve();
@@ -132,7 +139,7 @@ export function listGames(root: string, gameFound: (game: IGameLoader) => void):
                 try {
                     const header = parseHeader(data.toString());
                     gameFound(new GameFromDirectoryLoader(file, header));
-                } catch(e) {
+                } catch (e) {
                     console.error(e);
                 }
 
@@ -149,11 +156,11 @@ export function listGames(root: string, gameFound: (game: IGameLoader) => void):
             }
 
             const tasks = new Array<Promise<void>>();
-            files.forEach(_ => {
+            files.forEach((_) => {
                 if (_ === model.HEADER_NAME) {
                     // the root directory is a game itself
                     tasks.push(checkDirectory(root));
-                } else if (_.endsWith('.zip')) {
+                } else if (_.endsWith(".zip")) {
                     // found a potentially zipped game
                     tasks.push(checkZip(_));
                 } else {
