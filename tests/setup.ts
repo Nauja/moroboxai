@@ -1,20 +1,38 @@
-import * as path from "path";
+import * as nodePath from "path";
 import * as fs from "fs";
 import * as http from "http";
 import * as net from "net";
 import * as platform from "../src/utils/platform";
+import tempDir from "../src/utils/tempDir";
 
-// Directory cleaned before each test
-const ENV_DIR = path.resolve(__dirname, "env");
-const DATA_DIR = path.resolve(__dirname, "data");
-global.ENV_DIR = ENV_DIR;
+const DATA_DIR = nodePath.join(__dirname, "data");
 global.DATA_DIR = DATA_DIR;
 
-// Mock the data directory of MoroboxAI storing the config, boots, and games
-const MOROBOXAI_DIR = path.join(ENV_DIR, "moroboxai");
-const GAMES_DIR = path.join(MOROBOXAI_DIR, "games");
-const BOOTS_DIR = path.join(MOROBOXAI_DIR, "boots");
-const SOURCES_LIST = path.join(MOROBOXAI_DIR, "sources.list");
+const mockExit = jest.spyOn(process, "exit").mockImplementation((number) => {
+    if (number !== 0) {
+        throw new Error("process.exit: " + number);
+    }
+
+    return undefined as never;
+});
+
+function deleteFolderRecursive(path: string) {
+    var files = [];
+    if (fs.existsSync(path)) {
+        files = fs.readdirSync(path);
+        files.forEach(function (file, index) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                // recurse
+                deleteFolderRecursive(curPath);
+            } else {
+                // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+}
 
 /**
  * Default route for serving local files.
@@ -30,7 +48,7 @@ function serveLocalFiles(rootDir: string) {
         }
 
         // check if requested path is a file
-        const file = path.join(rootDir, req.url);
+        const file = nodePath.join(rootDir, req.url);
         fs.stat(file, (e, stats) => {
             if (e || !stats.isFile()) {
                 console.error(e);
@@ -67,20 +85,44 @@ afterAll(() => {
     FILE_SERVER.close();
 });
 
-beforeEach(() => {
-    // Clean the env directory for each test
-    fs.rmSync(ENV_DIR, { recursive: true, force: true });
-    [GAMES_DIR, BOOTS_DIR].forEach((dir) =>
-        fs.mkdirSync(dir, { recursive: true })
-    );
-    global.ENV_DIR = ENV_DIR;
+beforeEach(async () => {
+    return new Promise<void>(async (resolve) => {
+        await tempDir({ preserve: true }, async (path) => {
+            // Mock the data directory of MoroboxAI storing the config, boots, and games
+            const ENV_DIR = path;
+            global.ENV_DIR = ENV_DIR;
+            const MOROBOXAI_DIR = nodePath.join(ENV_DIR, "moroboxai");
+            const GAMES_DIR = nodePath.join(MOROBOXAI_DIR, "games");
+            const BOOTS_DIR = nodePath.join(MOROBOXAI_DIR, "boots");
+            const SOURCES_LIST = nodePath.join(MOROBOXAI_DIR, "sources.list");
 
-    // Mock paths to the data directory
-    (platform.DATA_DIR as any) = MOROBOXAI_DIR;
-    (platform.GAMES_DIR as any) = GAMES_DIR;
-    (platform.BOOTS_DIR as any) = BOOTS_DIR;
-    (platform.SOURCES_LIST as any) = SOURCES_LIST;
-    (platform.CWD as any) = ENV_DIR;
+            // Clean the env directory for each test
+            fs.rmSync(ENV_DIR, { recursive: true, force: true });
+            if (fs.existsSync(ENV_DIR)) {
+                throw `Could not delete ${ENV_DIR}`;
+            }
+            [GAMES_DIR, BOOTS_DIR].forEach((dir) =>
+                fs.mkdirSync(dir, { recursive: true })
+            );
+            global.ENV_DIR = ENV_DIR;
 
-    fs.writeFileSync(SOURCES_LIST, global.FILE_SERVER_URL);
+            // Mock paths to the data directory
+            (platform.DATA_DIR as any) = MOROBOXAI_DIR;
+            (platform.GAMES_DIR as any) = GAMES_DIR;
+            (platform.BOOTS_DIR as any) = BOOTS_DIR;
+            (platform.SOURCES_LIST as any) = SOURCES_LIST;
+            (platform.CWD as any) = ENV_DIR;
+
+            fs.writeFileSync(SOURCES_LIST, global.FILE_SERVER_URL);
+            resolve();
+        });
+    });
+});
+
+afterEach(() => {
+    try {
+        fs.rmSync(global.ENV_DIR, { recursive: true, force: true });
+    } catch (err) {
+        console.error(err);
+    }
 });

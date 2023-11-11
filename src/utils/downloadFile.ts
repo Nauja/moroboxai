@@ -74,7 +74,9 @@ export default async function downloadFile(
 
             // Copy to destination
             const dst = options.dst ?? path;
-            fs.copyFileSync(path, dst);
+            if (options.dst !== undefined) {
+                fs.copyFileSync(path, dst);
+            }
 
             // Notify the caller
             if (options.callback !== undefined) {

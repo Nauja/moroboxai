@@ -19,6 +19,11 @@ export interface PackOptions {
     output?: string;
 }
 
+export interface UnpackOptions {
+    // Output path
+    output?: string;
+}
+
 export interface IGameReader {
     // Id of the game
     readonly id: string;
@@ -41,7 +46,7 @@ export interface IGameReader {
      *
      * Raise CantUnpackError if the game is not packed.
      */
-    unpack: (dst: string) => Promise<void>;
+    unpack: (options?: UnpackOptions) => Promise<void>;
     // Close the game
     close: () => Promise<void>;
 }
@@ -94,7 +99,17 @@ class ZIPGameReader implements IGameReader {
         throw new CantPackError(this.id, "not a directory");
     }
 
-    async unpack(dst: string): Promise<void> {
+    async unpack(options?: UnpackOptions): Promise<void> {
+        let dst = options.output ?? CWD;
+        if (!nodePath.isAbsolute(dst)) {
+            dst = nodePath.join(CWD, dst);
+        }
+
+        if (fs.existsSync(dst)) {
+            dst = nodePath.join(dst, this.id);
+        }
+
+        console.log(`Unpack to ${dst}`);
         await this._zip.extract(null, dst);
     }
 
@@ -156,7 +171,11 @@ class DirectoryGameReader implements IGameReader {
 
     pack(options: PackOptions): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
-            const dst = outputFile(options.output ?? CWD, `${this.id}.zip`);
+            let dst = options.output ?? `${this.id}.zip`;
+            if (!nodePath.isAbsolute(dst)) {
+                dst = nodePath.join(CWD, dst);
+            }
+
             console.log(`Pack to ${dst}`);
 
             const output = fs.createWriteStream(dst);

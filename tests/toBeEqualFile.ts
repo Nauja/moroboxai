@@ -1,9 +1,6 @@
 import * as fs from "fs";
 import { expect } from "@jest/globals";
 
-/**
- * Check that a path is a file.
- */
 expect.extend({
     toBeEqualFile(actual, other) {
         if (typeof actual !== "string") {

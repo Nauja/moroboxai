@@ -6,7 +6,7 @@ import unpackGame from "../utils/unpackGame";
  */
 export interface Options {
     // Id or path of the game
-    game: string;
+    path: string;
     // Destination directory
     output?: string;
 }
@@ -17,7 +17,7 @@ export interface Options {
  */
 export default async function (args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        await unpackGame(args);
+        await unpackGame({ game: args.path, output: args.output });
         process.exit(0);
     } catch (err) {
         console.error(err);

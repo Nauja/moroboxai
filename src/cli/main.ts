@@ -146,7 +146,7 @@ export default function (arg: string | readonly string[]) {
             "Unpack a game from archive",
             (yargs) => {
                 return yargs
-                    .positional<string, yargs.PositionalOptions>("game", {
+                    .positional<string, yargs.PositionalOptions>("path", {
                         description: "Id or path of the game",
                         type: "string",
                     })

@@ -1,5 +1,4 @@
 import openGame from "./openGame";
-import { CWD } from "./platform";
 
 /**
  * Options for unpackGame.
@@ -21,10 +20,12 @@ export interface UnpackGameOptions {
 export default async function unpackGame(options: UnpackGameOptions) {
     const game = await openGame({ game: options.game });
     try {
-        await game.unpack(options.output ?? CWD);
+        await game.unpack({ output: options.output });
     } finally {
         try {
             await game.close();
-        } catch (err) {}
+        } catch (err) {
+            console.debug("Failed to close game", err);
+        }
     }
 }

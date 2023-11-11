@@ -1,7 +1,4 @@
-import { BootNotFoundError } from "./errors";
-import { EPullResult, pull } from "./pullGame";
 import openGame from "./openGame";
-import { BOOTS_DIR, CWD } from "./platform";
 
 /**
  * Options for packGame.
@@ -28,6 +25,8 @@ export default async function packGame(options: PackGameOptions) {
     } finally {
         try {
             await game.close();
-        } catch (err) {}
+        } catch (err) {
+            console.debug("Failed to close game", err);
+        }
     }
 }

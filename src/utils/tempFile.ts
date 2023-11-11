@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as tmp from "tmp";
 
 /**
- * Options for downloadFile.
+ * Options for tempFile.
  */
 export interface TempFileOptions {
     // Postfix for the generated name
