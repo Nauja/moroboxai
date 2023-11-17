@@ -1,6 +1,7 @@
+import * as fs from "fs";
 import isID from "./isID";
 import { UnexpectedArgumentError } from "./errors";
-import open from "./open";
+import installPaths from "./installPaths";
 
 export interface RemoveOptions {
     // Id of the target
@@ -19,7 +20,12 @@ export default async function remove(options: RemoveOptions) {
         throw new UnexpectedArgumentError("target", "should be an id");
     }
 
-    await open({ target: options.target }, async (reader) => {
-        await reader.remove();
-    });
+    // Only remove from builtin directories
+    for (const path of installPaths({
+        target: options.target,
+        builtinDirsOnly: true,
+    })) {
+        console.debug(`Remove ${path}...`);
+        fs.rmSync(path, { force: true });
+    }
 }

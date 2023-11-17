@@ -7,7 +7,7 @@ import installPaths from "./installPaths";
  * @returns if installed
  */
 export default function isInstalled(id: string): boolean {
-    for (const path of installPaths(id)) {
+    for (const path of installPaths({ target: id })) {
         if (fs.existsSync(path)) {
             return true;
         }

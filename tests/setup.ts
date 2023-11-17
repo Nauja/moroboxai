@@ -130,7 +130,6 @@ beforeEach(() => {
     });
 });
 
-/*
 afterEach(() => {
     try {
         fs.rmSync(global.ENV_DIR, { recursive: true, force: true });
@@ -138,4 +137,3 @@ afterEach(() => {
         console.error(err);
     }
 });
-*/

@@ -237,6 +237,8 @@ class DirectoryReader implements IReader {
 export interface OpenOptions {
     // Id or path of the target
     target: string;
+    // Only searches in builtin directories
+    builtinDirsOnly?: boolean;
 }
 
 /**
@@ -252,7 +254,10 @@ export default async function open(
 ) {
     let reader: IReader = null;
 
-    for (const path of installPaths(options.target)) {
+    for (const path of installPaths({
+        target: options.target,
+        builtinDirsOnly: options.builtinDirsOnly,
+    })) {
         if (!fs.existsSync(path)) {
             continue;
         }
