@@ -21,6 +21,7 @@
         "pong": "electron build/index.js --games-dir . pong",
         "pull": "electron build/index.js pull",
         "rm": "electron build/index.js rm",
+        "pack2": "node build/index.js pack pack",
         "info": "electron build/index.js info"
     },
     "repository": {

@@ -1,26 +1,39 @@
 import * as yargs from "yargs";
-import unpackGame from "../utils/unpackGame";
+import unpack from "../utils/unpack";
 
-/**
- * Options for unpackGame.
- */
 export interface Options {
-    // Id or path of the game
-    path: string;
+    // Id or path of the target
+    target: string;
     // Destination directory
     output?: string;
 }
 
-/**
- * Unpack a game from archive.
- * @param args - arguments
- */
-export default async function (args: yargs.ArgumentsCamelCase<Options>) {
+async function handle(args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        await unpackGame({ game: args.path, output: args.output });
+        await unpack({ target: args.target, output: args.output });
         process.exit(0);
     } catch (err) {
         console.error(err);
         process.exit(1);
     }
+}
+
+export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
+    return argv.command(
+        "unpack target",
+        "Unpack a game, boot, or agent, from archive",
+        (yargs) => {
+            return yargs
+                .positional<string, yargs.PositionalOptions>("target", {
+                    description: "Id or path of the target",
+                    type: "string",
+                })
+                .option<string, yargs.Options>("o", {
+                    alias: "output",
+                    description: "Destination directory",
+                    type: "string",
+                });
+        },
+        handle
+    );
 }

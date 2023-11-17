@@ -2,17 +2,16 @@ import * as fs from "fs";
 import * as nodePath from "path";
 import * as StreamZip from "node-stream-zip";
 import * as archiver from "archiver";
-import { GameHeader } from "moroboxai-game-sdk";
+import * as yaml from "yaml";
 import {
-    GameNotFoundError,
-    GameHeaderNotFoundError,
+    NotFoundError,
+    HeaderNotFoundError,
     isENOENT,
     CantUnpackError,
     CantPackError,
 } from "./errors";
-import { CWD, GAMES_DIR } from "./platform";
-import isID from "./isID";
-import outputFile from "./outputFile";
+import { CWD } from "./platform";
+import installPaths from "./installPaths";
 
 export interface PackOptions {
     // Output path
@@ -24,37 +23,43 @@ export interface UnpackOptions {
     output?: string;
 }
 
-export interface IGameReader {
-    // Id of the game
+export interface Header {
+    type?: "game" | "boot" | "agent";
+}
+
+export interface IReader {
+    // Id of the element
     readonly id: string;
-    // If the game is in an archive
+    // If an archive
     readonly isArchive: boolean;
-    // If the game is in a directory
+    // If a directory
     readonly isDirectory: boolean;
     /**
-     * Load the game header.
+     * Load the header.
      *
-     * Raise GameHeaderNotFoundError if the header is not found.
+     * Raise HeaderNotFoundError if the header is not found.
      */
-    loadHeader: () => Promise<GameHeader>;
-    // Get the size of the game
+    loadHeader: () => Promise<Header>;
+    // Get the size of the archive or directory
     size: () => Promise<number>;
-    // Pack the game
+    // Pack to archive
     pack: (options: PackOptions) => Promise<void>;
     /**
-     * Unpack the game.
+     * Unpack from archive.
      *
-     * Raise CantUnpackError if the game is not packed.
+     * Raise CantUnpackError if not packed.
      */
     unpack: (options?: UnpackOptions) => Promise<void>;
-    // Close the game
+    // Close
     close: () => Promise<void>;
+    // Remove from disk
+    remove: () => Promise<void>;
 }
 
 /**
- * Reader for games archived as .zip.
+ * Reader for .zip archives.
  */
-class ZIPGameReader implements IGameReader {
+class ZIPReader implements IReader {
     private _id: string;
     private _path: string;
     private _zip: StreamZip.StreamZipAsync;
@@ -82,12 +87,12 @@ class ZIPGameReader implements IGameReader {
         return false;
     }
 
-    async loadHeader(): Promise<GameHeader> {
-        return new Promise<GameHeader>((resolve, reject) => {
+    async loadHeader(): Promise<Header> {
+        return new Promise<Header>((resolve, reject) => {
             this._zip
                 .entryData("header.yml")
-                .then((data) => resolve(data.toJSON() as GameHeader))
-                .catch(() => reject(new GameHeaderNotFoundError(this.id)));
+                .then((data) => resolve(yaml.parse(data.toString()) as Header))
+                .catch(() => reject(new HeaderNotFoundError(this._path)));
         });
     }
 
@@ -116,12 +121,28 @@ class ZIPGameReader implements IGameReader {
     async close(): Promise<void> {
         await this._zip.close();
     }
+
+    remove(): Promise<void> {
+        return new Promise<void>(async (resolve, reject) => {
+            // Make sure to close the archive before
+            await this.close();
+
+            // Try to remove
+            fs.rm(this._path, { force: true }, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                return resolve();
+            });
+        });
+    }
 }
 
 /**
- * Reader for games in directories.
+ * Reader for directories.
  */
-class DirectoryGameReader implements IGameReader {
+class DirectoryReader implements IReader {
     private _id: string;
     private _root: string;
 
@@ -146,20 +167,20 @@ class DirectoryGameReader implements IGameReader {
         return true;
     }
 
-    async loadHeader(): Promise<GameHeader> {
-        return new Promise<GameHeader>((resolve, reject) => {
+    async loadHeader(): Promise<Header> {
+        return new Promise<Header>((resolve, reject) => {
             fs.readFile(
                 nodePath.join(this._root, "header.yml"),
                 (err, data) => {
                     if (err) {
                         if (isENOENT(err)) {
-                            return reject(new GameHeaderNotFoundError(this.id));
+                            return reject(new HeaderNotFoundError(this.id));
                         }
 
                         return reject(err);
                     }
 
-                    return resolve(data.toJSON() as GameHeader);
+                    return resolve(yaml.parse(data.toString()) as Header);
                 }
             );
         });
@@ -198,52 +219,66 @@ class DirectoryGameReader implements IGameReader {
     }
 
     async close(): Promise<void> {}
+
+    remove(): Promise<void> {
+        return new Promise<void>(async (resolve, reject) => {
+            // Remove with rf
+            fs.rm(this._root, { recursive: true, force: true }, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                return resolve();
+            });
+        });
+    }
+}
+
+export interface OpenOptions {
+    // Id or path of the target
+    target: string;
 }
 
 /**
- * Return the possible paths for a game.
- * @param {string} game - id or path of the game
- */
-function* gamePaths(game: string): Generator<string, void, void> {
-    // Test the path itself
-    yield game;
-
-    // Test from the games dir
-    yield nodePath.join(GAMES_DIR, `${game}.zip`);
-}
-
-export interface OpenGameOptions {
-    // Id or path of the game
-    game: string;
-}
-
-export enum EOpenGameError {
-    NotFound,
-}
-
-/**
- * Open a game for reading.
+ * Open a game, boot, or agent, for reading.
  *
- * Raise GameNotFoundError if the game is not found.
- * Raise GameHeaderNotFoundError if the header is not found.
+ * Raise NotFoundError if the game is not found.
+ * Raise HeaderNotFoundError if the header is not found.
  * @returns reader
  */
-export default async function openGame(
-    options: OpenGameOptions
-): Promise<IGameReader> {
-    for (const path of gamePaths(options.game)) {
+export default async function open(
+    options: OpenOptions,
+    callback: (reader: IReader) => Promise<void>
+) {
+    let reader: IReader = null;
+
+    for (const path of installPaths(options.target)) {
         if (!fs.existsSync(path)) {
             continue;
         }
 
         if (path.endsWith(".zip")) {
             const zip = new StreamZip.async({ file: path });
-            return Promise.resolve(new ZIPGameReader(path, zip));
+            reader = new ZIPReader(path, zip);
+            break;
         }
 
         // Test directory
-        return Promise.resolve(new DirectoryGameReader(path));
+        reader = new DirectoryReader(path);
+        break;
     }
 
-    throw new GameNotFoundError(options.game);
+    if (reader === null) {
+        throw new NotFoundError(options.target);
+    }
+
+    try {
+        await callback(reader);
+    } finally {
+        try {
+            await reader.close();
+        } catch (err) {
+            console.debug("Could not close reader", err);
+        }
+    }
 }

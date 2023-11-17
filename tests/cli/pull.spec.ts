@@ -2,9 +2,13 @@ import { expect } from "@jest/globals";
 import "jest";
 import * as path from "path";
 import main from "../../src/cli/main";
-import pullGame, { EPullResult } from "../../src/utils/pullGame";
+import pull, { EPullResult } from "../../src/utils/pull";
 import "../toBeInstalledGame";
 import "../toBeNthInstalledGames";
+import "../toBeInstalledBoot";
+import "../toBeNthInstalledBoots";
+import "../toBeInstalledAgent";
+import "../toBeNthInstalledAgents";
 import "../toBeFile";
 import "../toBeDirectory";
 import { UnexpectedArgumentError } from "../../src/utils/errors";
@@ -13,18 +17,38 @@ declare const FILE_SERVER_URL: string;
 declare const ENV_DIR: string;
 
 describe("moroboxai pull", () => {
-    it("should not have games installed", async () => {
-        expect(0).toBeNthInstalledGames();
-    });
-
     it("should pull game with id", async () => {
         await main(["pull", "pong"]);
         expect(1).toBeNthInstalledGames();
+        expect(0).toBeNthInstalledBoots();
+        expect(0).toBeNthInstalledAgents();
         expect("pong").toBeInstalledGame();
     });
 
+    it("should pull boot with id", async () => {
+        await pull({
+            target: "Moroxel8AI",
+            timeout: 1,
+        });
+        expect(0).toBeNthInstalledGames();
+        expect(1).toBeNthInstalledBoots();
+        expect(0).toBeNthInstalledAgents();
+        expect("Moroxel8AI").toBeInstalledBoot();
+    });
+
+    it("should pull agent with id", async () => {
+        await pull({
+            target: "random-agent",
+            timeout: 1,
+        });
+        expect(0).toBeNthInstalledGames();
+        expect(0).toBeNthInstalledBoots();
+        expect(1).toBeNthInstalledAgents();
+        expect("random-agent").toBeInstalledAgent();
+    });
+
     it("should pull game with HTTP URL", async () => {
-        await main(["pull", `${FILE_SERVER_URL}/pong.zip`]);
+        await main(["pull", `${FILE_SERVER_URL}/games/pong.zip`]);
         expect(1).toBeNthInstalledGames();
         expect("pong").toBeInstalledGame();
     });
@@ -35,7 +59,7 @@ describe("moroboxai pull", () => {
      * URL => it will directly download from the URL.
      */
     it("should only accept id or URL", async () => {
-        await expect(pullGame({ game: `pong.zip` })).rejects.toThrow(
+        await expect(pull({ target: `pong.zip` })).rejects.toThrow(
             UnexpectedArgumentError
         );
     });
@@ -43,18 +67,18 @@ describe("moroboxai pull", () => {
     // Only games archived as .zip can be downloaded and unpacked
     it("should only accept .zip URLs", async () => {
         await expect(
-            pullGame({ game: `${FILE_SERVER_URL}/pong.txt` })
+            pull({ target: `${FILE_SERVER_URL}/pong.txt` })
         ).rejects.toThrow(UnexpectedArgumentError);
     });
 
     it("should not pull already installed game", async () => {
         expect(0).toBeNthInstalledGames();
         // First pull
-        expect(await pullGame({ game: "pong" })).toBe(EPullResult.Downloaded);
+        expect(await pull({ target: "pong" })).toBe(EPullResult.Downloaded);
         expect(1).toBeNthInstalledGames();
         expect("pong").toBeInstalledGame();
         // Try to pull again
-        expect(await pullGame({ game: "pong" })).toBe(
+        expect(await pull({ target: "pong" })).toBe(
             EPullResult.AlreadyDownloaded
         );
         expect(1).toBeNthInstalledGames();
@@ -64,11 +88,11 @@ describe("moroboxai pull", () => {
     it("should force pull already installed game", async () => {
         expect(0).toBeNthInstalledGames();
         // First pull
-        expect(await pullGame({ game: "pong" })).toBe(EPullResult.Downloaded);
+        expect(await pull({ target: "pong" })).toBe(EPullResult.Downloaded);
         expect(1).toBeNthInstalledGames();
         expect("pong").toBeInstalledGame();
         // Try to force pull
-        expect(await pullGame({ game: "pong", force: true })).toBe(
+        expect(await pull({ target: "pong", force: true })).toBe(
             EPullResult.Downloaded
         );
         expect(1).toBeNthInstalledGames();

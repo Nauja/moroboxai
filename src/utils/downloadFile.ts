@@ -17,8 +17,8 @@ export interface DownloadFileOptions {
      * A temporary file only is created if this parameter is undefined.
      */
     dst?: string;
-    // Called after downloading the file
-    callback?: (path: string) => void;
+    // Timeout of the request
+    timeout?: number;
 }
 
 async function writeToFile(options: DownloadFileOptions) {
@@ -26,13 +26,14 @@ async function writeToFile(options: DownloadFileOptions) {
         const url = new URL(options.src);
         const req = (url.protocol === "http:" ? http : https).get(
             url,
+            { timeout: options.timeout },
             (res) => {
                 if (res.statusCode === 404) {
-                    throw new NotFoundError(options.src.toString());
+                    return reject(new NotFoundError(options.src.toString()));
                 }
 
                 if (res.statusCode !== 200) {
-                    throw `status code ${res.statusCode}`;
+                    return reject(`status code ${res.statusCode}`);
                 }
 
                 const fileStream = fs.createWriteStream(options.dst);
@@ -53,7 +54,8 @@ async function writeToFile(options: DownloadFileOptions) {
  * @returns the path of downloaded file
  */
 export default async function downloadFile(
-    options: DownloadFileOptions
+    options: DownloadFileOptions,
+    callback: (path: string) => void
 ): Promise<void> {
     const url = new URL(options.src);
     const ext = path.parse(url.pathname).ext;
@@ -70,6 +72,7 @@ export default async function downloadFile(
             await writeToFile({
                 src: options.src,
                 dst: path,
+                timeout: options.timeout,
             });
 
             // Copy to destination
@@ -79,8 +82,8 @@ export default async function downloadFile(
             }
 
             // Notify the caller
-            if (options.callback !== undefined) {
-                await options.callback(dst);
+            if (callback !== undefined) {
+                await callback(dst);
             }
         }
     );

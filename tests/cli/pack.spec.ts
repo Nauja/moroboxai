@@ -3,11 +3,11 @@ import "jest";
 import * as fs from "fs";
 import * as path from "path";
 import main from "../../src/cli/main";
-import { CWD } from "../../src/utils/platform";
+import { CWD, GAMES_DIR } from "../../src/utils/platform";
 import "../toBeEqualFile";
 
 declare const ENV_DIR: string;
-declare const DATA_DIR: string;
+declare const DATA_GAMES_DIR: string;
 
 beforeEach(() => {
     // Create directory to pack
@@ -17,17 +17,17 @@ beforeEach(() => {
 describe("moroboxai pack", () => {
     it("should pack game from directory", async () => {
         // Pack the game to ./pong.zip
-        await main(["pack", path.join(DATA_DIR, "pong")]);
+        await main(["pack", path.join(DATA_GAMES_DIR, "pong")]);
         const actualArchive = path.join(CWD, "pong.zip");
-        const expectedArchive = path.join(DATA_DIR, "pong.zip");
+        const expectedArchive = path.join(DATA_GAMES_DIR, "pong.zip");
         expect(actualArchive).toBeEqualFile(expectedArchive);
     });
 
     it("should pack game to absolute path", async () => {
         // Pack the game to <env_dir>/pack/pong.zip
         const output = path.join(ENV_DIR, "pack", "pong.zip");
-        await main(["pack", "-o", output, path.join(DATA_DIR, "pong")]);
-        expect(output).toBeEqualFile(path.join(DATA_DIR, "pong.zip"));
+        await main(["pack", "-o", output, path.join(DATA_GAMES_DIR, "pong")]);
+        expect(output).toBeEqualFile(path.join(DATA_GAMES_DIR, "pong.zip"));
     });
 
     it("should pack game to relative path", async () => {
@@ -36,10 +36,10 @@ describe("moroboxai pack", () => {
             "pack",
             "-o",
             "./pack/pong.zip",
-            path.join(DATA_DIR, "pong"),
+            path.join(DATA_GAMES_DIR, "pong"),
         ]);
         expect(path.join(ENV_DIR, "pack", "pong.zip")).toBeEqualFile(
-            path.join(DATA_DIR, "pong.zip")
+            path.join(DATA_GAMES_DIR, "pong.zip")
         );
     });
 });

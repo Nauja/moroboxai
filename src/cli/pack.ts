@@ -1,21 +1,16 @@
 import * as yargs from "yargs";
-import packGame from "../utils/packGame";
-import { CWD } from "../utils/platform";
+import pack from "../utils/pack";
 
-export interface Options {
-    // Path of the game
+interface Options {
+    // Path of the target
     path: string;
     // Destination archive
     output?: string;
 }
 
-/**
- * Pack a game to archive.
- * @param args - arguments
- */
-export default async function (args: yargs.ArgumentsCamelCase<Options>) {
+async function handle(args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        await packGame({
+        await pack({
             path: args.path,
             output: args.output,
         });
@@ -24,4 +19,24 @@ export default async function (args: yargs.ArgumentsCamelCase<Options>) {
         console.error(err);
         process.exit(1);
     }
+}
+
+export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
+    return argv.command(
+        "pack path",
+        "Pack a game to archive",
+        (yargs) => {
+            return yargs
+                .positional<string, yargs.PositionalOptions>("path", {
+                    description: "Path of the game",
+                    type: "string",
+                })
+                .option<string, yargs.Options>("output", {
+                    alias: "o",
+                    description: "Destination archive",
+                    type: "string",
+                });
+        },
+        handle
+    );
 }

@@ -1,10 +1,10 @@
 import * as yargs from "yargs";
-import pullGame, { EPullResult } from "../utils/pullGame";
+import pull, { EPullResult } from "../utils/pull";
 
-export interface Options {
-    // Id or URL of the game
-    game: string;
-    // Pull even if the game is already installed
+interface Options {
+    // Id or URL of the target
+    target: string;
+    // Pull even if the target is already installed
     force?: boolean;
     // Destination of the archive
     output?: string;
@@ -12,24 +12,57 @@ export interface Options {
     unpack?: boolean;
 }
 
-export default async function (args: yargs.ArgumentsCamelCase<Options>) {
-    console.log(`Pulling game ${args.game}...`);
+async function handle(args: yargs.ArgumentsCamelCase<Options>) {
+    console.log(`Pulling ${args.target}...`);
 
     try {
-        const result = await pullGame({
-            game: args.game,
+        const result = await pull({
+            target: args.target,
             force: args.force,
             output: args.output,
             unpack: args.unpack,
         });
         if (result === EPullResult.Downloaded) {
-            console.log("Game installed");
+            console.log("Installed");
         } else if (result === EPullResult.AlreadyDownloaded) {
-            console.log("Game already installed");
+            console.log("Already installed");
         }
         process.exit(0);
     } catch (err) {
         console.error(err);
         process.exit(1);
     }
+}
+
+export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
+    return argv.command(
+        "pull target",
+        "Install a game, boot, or agent",
+        (yargs) => {
+            return yargs
+                .positional<string, yargs.PositionalOptions>("target", {
+                    description: "Id or URL of the target",
+                    type: "string",
+                })
+                .option<string, yargs.Options>("force", {
+                    alias: "f",
+                    description: "Pull even if the target is already installed",
+                    type: "boolean",
+                    default: false,
+                })
+                .option<string, yargs.Options>("unpack", {
+                    alias: "u",
+                    description: "Unpack the archive",
+                    type: "boolean",
+                    default: false,
+                })
+                .option<string, yargs.Options>("output", {
+                    alias: "o",
+                    description:
+                        "Destination archive (only used with --unpack)",
+                    type: "string",
+                });
+        },
+        handle
+    );
 }

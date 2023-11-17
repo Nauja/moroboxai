@@ -1,6 +1,24 @@
 export class MoroboxAIError extends Error {}
 
-export class NotFoundError extends MoroboxAIError {}
+export class NotFoundError extends MoroboxAIError {
+    what: string;
+
+    constructor(what: string) {
+        super(`${what} not found`);
+        this.what = what;
+    }
+}
+
+export class NotGameError extends MoroboxAIError {
+    id: string;
+
+    constructor(id: string) {
+        super(`${id} is not a game`);
+        this.id = id;
+    }
+}
+
+export class InvalidHeaderError extends MoroboxAIError {}
 
 export class GameNotFoundError extends NotFoundError {
     id: string;
@@ -20,11 +38,11 @@ export class BootNotFoundError extends NotFoundError {
     }
 }
 
-export class GameHeaderNotFoundError extends MoroboxAIError {
+export class HeaderNotFoundError extends MoroboxAIError {
     id: string;
 
     constructor(id: string) {
-        super(`Header not found for game ${id}`);
+        super(`${id} header not found`);
         this.id = id;
     }
 }

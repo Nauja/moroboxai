@@ -1,7 +1,7 @@
 import { expect } from "@jest/globals";
 import "jest";
 import main from "../../src/cli/main";
-import removeGame from "../../src/utils/removeGame";
+import remove from "../../src/utils/remove";
 import "../toBeInstalledGame";
 import "../toBeNthInstalledGames";
 import "../toBeFile";
@@ -27,7 +27,7 @@ describe("moroboxai rm", () => {
     });
 
     it("should only accept id", async () => {
-        await expect(removeGame({ game: "pong.zip" })).rejects.toThrow(
+        await expect(remove({ target: "pong.zip" })).rejects.toThrow(
             UnexpectedArgumentError
         );
     });

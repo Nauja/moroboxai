@@ -1,21 +1,19 @@
-import listGames from "../utils/listGames";
-import printTable from "../utils/printTable";
+import * as yargs from "yargs";
+import { printList } from "../utils/list";
+import { GAMES_DIR } from "../utils/platform";
 
-export default async function () {
+interface Options {}
+
+async function handle(args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        const games = await listGames();
-        printTable(
-            ["id", "size"],
-            games.map((game) => {
-                return {
-                    id: game.id,
-                    size: game.size,
-                };
-            })
-        );
+        printList({ rootDir: GAMES_DIR });
         process.exit(0);
     } catch (err) {
         console.error(err);
         process.exit(1);
     }
+}
+
+export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
+    return argv.command("games", "List installed games", {}, handle);
 }

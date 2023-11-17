@@ -1,8 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
-import { GameHeader } from "moroboxai-game-sdk";
-import { GAMES_DIR } from "./platform";
-import openGame from "./openGame";
+import open, { Header } from "./open";
+import printTable from "./printTable";
 
 /**
  * List elements installed in a directory.
@@ -39,20 +38,24 @@ export async function listInstalled<MappedType>(options: {
     });
 }
 
-export interface Game {
+export interface Element {
     path: string;
     id: string;
-    header: GameHeader;
+    header: Header;
     size: number;
 }
 
+export interface ListOptions {
+    // Directory to list
+    rootDir: string;
+}
+
 /**
- * List installed games.
- * @returns games
+ * List installed games, boots, or agents.
  */
-export default async function listGames(): Promise<Game[]> {
+export default async function list(options: ListOptions): Promise<Element[]> {
     return listInstalled({
-        rootDir: GAMES_DIR,
+        rootDir: options.rootDir,
         filter: (file) => {
             if (path.parse(file).ext === ".zip") {
                 return true;
@@ -60,16 +63,36 @@ export default async function listGames(): Promise<Game[]> {
 
             return fs.statSync(file).isDirectory();
         },
-        transform: async (file): Promise<Game> => {
-            const id = path.parse(file).name;
-            const game = await openGame({ game: id });
-
-            return {
-                path: path.join(GAMES_DIR, file),
-                id,
-                header: await game.loadHeader(),
-                size: await game.size(),
-            };
+        transform: async (file): Promise<Element> => {
+            return new Promise<Element>(async (resolve) => {
+                const id = path.parse(file).name;
+                await open({ target: id }, async (reader) => {
+                    return resolve({
+                        path: path.join(options.rootDir, file),
+                        id,
+                        header: await reader.loadHeader(),
+                        size: await reader.size(),
+                    });
+                });
+            });
         },
     });
+}
+
+export interface PrintListOptions {
+    rootDir: string;
+}
+
+export async function printList(options: PrintListOptions) {
+    const games = await list({ rootDir: options.rootDir });
+
+    printTable(
+        ["id", "size"],
+        games.map((game) => {
+            return {
+                id: game.id,
+                size: game.size,
+            };
+        })
+    );
 }
