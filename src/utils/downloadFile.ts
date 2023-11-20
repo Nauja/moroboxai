@@ -9,8 +9,6 @@ import { NotFoundError } from "./errors";
  * Options for downloadFile.
  */
 export interface DownloadFileOptions {
-    // URL of the source
-    src: string | URL;
     /**
      * Path of the destination.
      *
@@ -21,15 +19,15 @@ export interface DownloadFileOptions {
     timeout?: number;
 }
 
-async function writeToFile(options: DownloadFileOptions) {
+async function writeToFile(src: string | URL, options: DownloadFileOptions) {
     return new Promise<void>((resolve, reject) => {
-        const url = new URL(options.src);
+        const url = new URL(src);
         const req = (url.protocol === "http:" ? http : https).get(
             url,
             { timeout: options.timeout },
             (res) => {
                 if (res.statusCode === 404) {
-                    return reject(new NotFoundError(options.src.toString()));
+                    return reject(new NotFoundError(src.toString()));
                 }
 
                 if (res.statusCode !== 200) {
@@ -54,10 +52,11 @@ async function writeToFile(options: DownloadFileOptions) {
  * @returns the path of downloaded file
  */
 export default async function downloadFile(
+    src: string | URL,
     options: DownloadFileOptions,
     callback: (path: string) => void
 ): Promise<void> {
-    const url = new URL(options.src);
+    const url = new URL(src);
     const ext = path.parse(url.pathname).ext;
 
     // Download to temporary file
@@ -69,8 +68,7 @@ export default async function downloadFile(
         // Callback to handle the downloaded file
         async (path) => {
             // Write to file
-            await writeToFile({
-                src: options.src,
+            await writeToFile(src, {
                 dst: path,
                 timeout: options.timeout,
             });

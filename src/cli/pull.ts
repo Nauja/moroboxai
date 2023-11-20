@@ -1,7 +1,8 @@
 import * as yargs from "yargs";
-import pull, { EPullResult } from "../utils/pull";
+import pull from "../utils/pull";
+import type { SourcesOptions } from "../utils/pull/types";
 
-interface Options {
+type Options = Partial<SourcesOptions> & {
     // Id or URL of the target
     target: string;
     // Pull even if the target is already installed
@@ -10,23 +11,17 @@ interface Options {
     output?: string;
     // Unpack the archive
     unpack?: boolean;
-}
+};
 
 async function handle(args: yargs.ArgumentsCamelCase<Options>) {
-    console.log(`Pulling ${args.target}...`);
-
     try {
-        const result = await pull({
-            target: args.target,
+        await pull(args.target, {
             force: args.force,
             output: args.output,
             unpack: args.unpack,
+            sources: args.sources,
+            extraSources: args.extraSources,
         });
-        if (result === EPullResult.Downloaded) {
-            console.log("Installed");
-        } else if (result === EPullResult.AlreadyDownloaded) {
-            console.log("Already installed");
-        }
         process.exit(0);
     } catch (err) {
         console.error(err);
@@ -61,6 +56,14 @@ export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
                     description:
                         "Destination archive (only used with --unpack)",
                     type: "string",
+                })
+                .option<string, yargs.Options>("sources", {
+                    description: "Override default sources",
+                    type: "array",
+                })
+                .option<string, yargs.Options>("extra-sources", {
+                    description: "Additional sources",
+                    type: "array",
                 });
         },
         handle

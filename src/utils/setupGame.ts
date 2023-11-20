@@ -1,12 +1,13 @@
 import pull from "./pull";
 import open, { Header, IReader } from "./open";
-import { GameNotFoundError, NotFoundError, NotGameError } from "./errors";
+import { NotFoundError, NotGameError } from "./errors";
 import { GameHeader } from "moroboxai-game-sdk";
+import type { SourcesOptions } from "./pull/types";
 
-interface GetOrInstallOptions {
+type GetOrInstallOptions = Partial<SourcesOptions> & {
     // Id or path of the target
     target: string;
-}
+};
 
 /**
  * Make sure an element is installed.
@@ -18,7 +19,14 @@ async function getOrInstall(
 ) {
     try {
         // Try to open it
-        await open({ target: options.target }, callback);
+        return await open({ target: options.target }, async (reader) => {
+            try {
+                await callback(reader);
+            } catch (err) {
+                // Translate to a generic error
+                throw new Error(err);
+            }
+        });
     } catch (err) {
         // Will try to install in case of not found error
         if (!(err instanceof NotFoundError)) {
@@ -27,7 +35,10 @@ async function getOrInstall(
     }
 
     // Try to install it
-    await pull({ target: options.target });
+    await pull(options.target, {
+        sources: options.sources,
+        extraSources: options.extraSources,
+    });
 
     // Retry to open it
     await open({ target: options.target }, callback);
@@ -36,12 +47,12 @@ async function getOrInstall(
 /**
  * Options for setupGame.
  */
-export interface SetupGameOptions {
+export type SetupGameOptions = Partial<SourcesOptions> & {
     // Id or URL of the game
     game: string;
     // Force downloading even if the game exists
     force?: boolean;
-}
+};
 
 /**
  * Setup a game.
@@ -51,9 +62,14 @@ export interface SetupGameOptions {
  * @param {SetupGameOptions} options - options
  */
 export default async function setupGame(options: SetupGameOptions) {
-    return new Promise<void>(async (resolve) => {
-        // Install the game
-        await getOrInstall({ target: options.game }, async (game) => {
+    // Install the game
+    return await getOrInstall(
+        {
+            target: options.game,
+            sources: options.sources,
+            extraSources: options.extraSources,
+        },
+        async (game) => {
             // Load the header
             let header: Header | GameHeader = await game.loadHeader();
             if (header.type !== "game") {
@@ -64,13 +80,18 @@ export default async function setupGame(options: SetupGameOptions) {
             // Boot can be a function
             header = header as GameHeader;
             if (typeof header.boot !== "string") {
-                return resolve();
+                return;
             }
 
             // Install the boot
-            await getOrInstall({ target: header.boot }, async (boot) => {
-                return resolve();
-            });
-        });
-    });
+            await getOrInstall(
+                {
+                    target: header.boot,
+                    sources: options.sources,
+                    extraSources: options.extraSources,
+                },
+                async (boot) => {}
+            );
+        }
+    );
 }

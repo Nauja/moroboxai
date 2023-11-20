@@ -1,7 +1,9 @@
 import * as yargs from "yargs";
+import * as path from "path";
 import { app as ElectronApp, BrowserWindow } from "electron";
 import * as constants from "../constants";
 import setupGame from "../utils/setupGame";
+import type { SourcesOptions } from "../utils/pull/types";
 
 function runElectron(args: yargs.ArgumentsCamelCase<Options>) {
     // create and display main window, pass arguments
@@ -42,16 +44,20 @@ function runElectron(args: yargs.ArgumentsCamelCase<Options>) {
     });
 }
 
-export interface Options {
+export type Options = Partial<SourcesOptions> & {
     // Id or URL of the game
     game: string;
     // Exit just before running the game
     exit?: boolean;
-}
+};
 
 async function handle(args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        await setupGame({ game: args.game });
+        await setupGame({
+            game: args.game,
+            sources: args.sources,
+            extraSources: args.extraSources,
+        });
     } catch (err) {
         console.error(err);
         process.exit(1);
@@ -113,6 +119,14 @@ export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
                     description: "Forced minimum boot duration",
                     type: "number",
                     default: constants.BOOT_MIN_DURATION,
+                })
+                .option<string, yargs.Options>("sources", {
+                    description: "Override default sources",
+                    type: "array",
+                })
+                .option<string, yargs.Options>("extra-sources", {
+                    description: "Additional sources",
+                    type: "array",
                 })
                 .option<string, yargs.Options>("exit", {
                     alias: "e",

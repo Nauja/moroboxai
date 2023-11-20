@@ -5,7 +5,8 @@
  */
 export default function isValidURL(value: string): boolean {
     try {
-        return Boolean(new URL(value));
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
     } catch (e) {
         return false;
     }
