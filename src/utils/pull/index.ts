@@ -18,7 +18,7 @@ export default async function pull(
     target: string | Target,
     options?: PullOptions
 ): Promise<EPullResult> {
-    const result = await pullFromSources(makeTarget(target), options ?? {});
+    const result = await pullFromSources(makeTarget(target), options);
     if (result === EPullResult.Downloaded) {
         console.log("Installed");
     }

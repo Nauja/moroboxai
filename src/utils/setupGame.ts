@@ -71,22 +71,22 @@ export default async function setupGame(options: SetupGameOptions) {
         },
         async (game) => {
             // Load the header
-            let header: Header | GameHeader = await game.loadHeader();
+            const header: Header = await game.loadHeader();
             if (header.type !== "game") {
                 // This is not a game
                 throw new NotGameError(game.id);
             }
 
             // Boot can be a function
-            header = header as GameHeader;
-            if (typeof header.boot !== "string") {
+            const gameHeader = header as GameHeader;
+            if (typeof gameHeader.boot !== "string") {
                 return;
             }
 
             // Install the boot
             await getOrInstall(
                 {
-                    target: header.boot,
+                    target: gameHeader.boot,
                     sources: options.sources,
                     extraSources: options.extraSources,
                 },

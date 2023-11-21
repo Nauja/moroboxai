@@ -10,7 +10,7 @@ export interface Options {
 
 async function handle(args: yargs.ArgumentsCamelCase<Options>) {
     try {
-        await unpack({ target: args.target, output: args.output });
+        await unpack(args.target, { output: args.output });
         process.exit(0);
     } catch (err) {
         console.error(err);
@@ -21,7 +21,7 @@ async function handle(args: yargs.ArgumentsCamelCase<Options>) {
 export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
     return argv.command(
         "unpack target",
-        "Unpack a game, boot, or agent, from archive",
+        "Unpack a game, boot, or agent",
         (yargs) => {
             return yargs
                 .positional<string, yargs.PositionalOptions>("target", {
@@ -30,7 +30,7 @@ export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
                 })
                 .option<string, yargs.Options>("o", {
                     alias: "output",
-                    description: "Destination directory",
+                    description: "Output directory",
                     type: "string",
                 });
         },

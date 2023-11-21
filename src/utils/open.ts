@@ -3,28 +3,23 @@ import * as nodePath from "path";
 import * as StreamZip from "node-stream-zip";
 import * as archiver from "archiver";
 import * as yaml from "yaml";
-import {
-    NotFoundError,
-    HeaderNotFoundError,
-    isENOENT,
-    CantUnpackError,
-    CantPackError,
-} from "./errors";
+import { NotFoundError, HeaderNotFoundError, isENOENT } from "./errors";
 import { CWD } from "./platform";
 import installPaths from "./installPaths";
+import makeAbsolute from "./makeAbsolute";
+import outputPath from "./outputPath";
 
 export interface PackOptions {
-    // Output path
     output?: string;
 }
 
 export interface UnpackOptions {
-    // Output path
     output?: string;
 }
 
 export interface Header {
     type?: "game" | "boot" | "agent";
+    id?: string;
 }
 
 export interface IReader {
@@ -42,12 +37,14 @@ export interface IReader {
     loadHeader: () => Promise<Header>;
     // Get the size of the archive or directory
     size: () => Promise<number>;
-    // Pack to archive
-    pack: (options: PackOptions) => Promise<void>;
     /**
-     * Unpack from archive.
-     *
-     * Raise CantUnpackError if not packed.
+     * Pack the target.
+     * @param {PackOptions} options - options
+     */
+    pack: (options?: PackOptions) => Promise<void>;
+    /**
+     * Unpack the target.
+     * @param {UnpackOptions} options - options
      */
     unpack: (options?: UnpackOptions) => Promise<void>;
     // Close
@@ -91,7 +88,11 @@ class ZIPReader implements IReader {
         return new Promise<Header>((resolve, reject) => {
             this._zip
                 .entryData("header.yml")
-                .then((data) => resolve(yaml.parse(data.toString()) as Header))
+                .then((data) => {
+                    const header = yaml.parse(data.toString()) as Header;
+                    this._id = header.id;
+                    return resolve(header);
+                })
                 .catch(() => reject(new HeaderNotFoundError(this._path)));
         });
     }
@@ -100,22 +101,21 @@ class ZIPReader implements IReader {
         return Promise.resolve(fs.statSync(this._path).size);
     }
 
-    pack(): Promise<void> {
-        throw new CantPackError(this.id, "not a directory");
+    pack(options?: PackOptions): Promise<void> {
+        const output = outputPath(`${this.id}.zip`, options.output);
+        console.debug(`Pack to ${output}`);
+        fs.copyFileSync(this._path, output);
+        return Promise.resolve();
     }
 
     async unpack(options?: UnpackOptions): Promise<void> {
-        let dst = options.output ?? CWD;
-        if (!nodePath.isAbsolute(dst)) {
-            dst = nodePath.join(CWD, dst);
+        let output = outputPath("", options.output);
+        if (fs.existsSync(output)) {
+            output = nodePath.join(output, this.id);
         }
 
-        if (fs.existsSync(dst)) {
-            dst = nodePath.join(dst, this.id);
-        }
-
-        console.log(`Unpack to ${dst}`);
-        await this._zip.extract(null, dst);
+        console.log(`Unpack to ${output}`);
+        await this._zip.extract(null, output);
     }
 
     async close(): Promise<void> {
@@ -180,7 +180,9 @@ class DirectoryReader implements IReader {
                         return reject(err);
                     }
 
-                    return resolve(yaml.parse(data.toString()) as Header);
+                    const header = yaml.parse(data.toString()) as Header;
+                    this._id = header.id;
+                    return resolve(header);
                 }
             );
         });
@@ -190,32 +192,54 @@ class DirectoryReader implements IReader {
         return Promise.resolve(0);
     }
 
-    pack(options: PackOptions): Promise<void> {
+    pack(options?: PackOptions): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
-            let dst = options.output ?? `${this.id}.zip`;
-            if (!nodePath.isAbsolute(dst)) {
-                dst = nodePath.join(CWD, dst);
-            }
+            const output = outputPath(`${this.id}.zip`, options.output);
+            console.log(`Pack to ${output}`);
 
-            console.log(`Pack to ${dst}`);
-
-            const output = fs.createWriteStream(dst);
+            const wstream = fs.createWriteStream(output);
             const archive = archiver("zip", { zlib: { level: 9 } });
-            output.on("close", () => {
+            wstream.on("close", () => {
                 console.log(`${archive.pointer()} bytes packed`);
                 return resolve();
             });
 
             archive.on("error", reject);
 
-            archive.pipe(output);
+            archive.pipe(wstream);
             archive.directory(this._root, false);
             await archive.finalize();
         });
     }
 
-    unpack(): Promise<void> {
-        throw new CantUnpackError(this.id, "not an archive");
+    unpack(options?: UnpackOptions): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            let output = outputPath("", options.output);
+            if (fs.existsSync(output)) {
+                output = nodePath.join(output, this.id);
+            }
+
+            fs.readdir(this._root, { recursive: true }, (err, files) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                files.forEach((file) => {
+                    console.log(
+                        "Copy from",
+                        nodePath.join(this._root, file),
+                        " to ",
+                        nodePath.join(output, file)
+                    );
+                    fs.copyFileSync(
+                        nodePath.join(this._root, file),
+                        nodePath.join(output, file)
+                    );
+                });
+
+                return resolve();
+            });
+        });
     }
 
     async close(): Promise<void> {}
@@ -241,14 +265,7 @@ export interface OpenOptions {
     builtinDirsOnly?: boolean;
 }
 
-/**
- * Open a game, boot, or agent, for reading.
- *
- * Raise NotFoundError if the game is not found.
- * Raise HeaderNotFoundError if the header is not found.
- * @returns reader
- */
-export default async function open(
+async function createReader(
     options: OpenOptions,
     callback: (reader: IReader) => Promise<void>
 ) {
@@ -286,4 +303,21 @@ export default async function open(
             console.debug("Could not close reader", err);
         }
     }
+}
+
+/**
+ * Open a game, boot, or agent, for reading.
+ *
+ * Raise NotFoundError if the game is not found.
+ * Raise HeaderNotFoundError if the header is not found.
+ * @returns reader
+ */
+export default function open(
+    options: OpenOptions,
+    callback: (reader: IReader) => Promise<void>
+) {
+    return createReader(options, async (reader) => {
+        await reader.loadHeader();
+        await callback(reader);
+    });
 }

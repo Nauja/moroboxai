@@ -53,8 +53,7 @@ export default function (argv: yargs.Argv<{}>): yargs.Argv<{}> {
                 })
                 .option<string, yargs.Options>("output", {
                     alias: "o",
-                    description:
-                        "Destination archive (only used with --unpack)",
+                    description: "Destination path",
                     type: "string",
                 })
                 .option<string, yargs.Options>("sources", {

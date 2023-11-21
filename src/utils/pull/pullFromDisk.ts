@@ -1,10 +1,7 @@
-import * as fs from "fs";
 import * as path from "path";
 import { InvalidHeaderError } from "../errors";
-import outputFile from "../outputFile";
 import open from "../open";
-import unpack from "../unpack";
-import { AGENTS_DIR, BOOTS_DIR, GAMES_DIR } from "../platform";
+import { AGENTS_DIR, BOOTS_DIR, CWD, GAMES_DIR } from "../platform";
 import type { Target } from "../target";
 import type { PullOptions } from "./types";
 import { EPullResult } from "./types";
@@ -19,7 +16,7 @@ import { EPullResult } from "./types";
  */
 export default async function pullFromDisk(
     target: Target,
-    options: PullOptions
+    options?: PullOptions
 ): Promise<EPullResult> {
     // Open the archive
     await open(
@@ -30,7 +27,13 @@ export default async function pullFromDisk(
             // Try to read the header
             const header = await reader.loadHeader();
             if (header.type === undefined) {
-                throw new InvalidHeaderError("field type not defined");
+                throw new InvalidHeaderError(
+                    "field type not defined in header"
+                );
+            }
+
+            if (header.id === undefined) {
+                throw new InvalidHeaderError("field id not defined in header");
             }
 
             // Find the correct builtin directory
@@ -49,25 +52,20 @@ export default async function pullFromDisk(
                     throw new InvalidHeaderError("invalid type");
             }
 
-            const output =
-                options.unpack === true
-                    ? options.output ?? builtinDir
-                    : outputFile(
-                          options.output ?? builtinDir,
-                          `${target.id}.zip`
-                      );
-
-            if (options.unpack === true) {
-                // Optionally unpack the game to destination
-                const dst = path.join(output, target.id);
-                console.log(`Unpack to ${dst}...`);
-                await unpack({
-                    target: target.path,
-                    output: dst,
+            if (options?.unpack === true) {
+                // Unpack the game if option is set.
+                // By default, unpack to CWD.
+                await reader.unpack({
+                    output: options?.output,
                 });
             } else {
-                // Otherwise copy to destination
-                fs.copyFileSync(target.path, output);
+                // Otherwise, pack the game to install it.
+                // By default, install to the builtin directory.
+                await reader.pack({
+                    output:
+                        options?.output ??
+                        path.join(builtinDir, `${header.id}.zip`),
+                });
             }
         }
     );

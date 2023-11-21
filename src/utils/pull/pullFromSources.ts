@@ -26,15 +26,15 @@ async function* getTargets(
  */
 export async function pullFromSources(
     target: Target,
-    options: PullOptions
+    options?: PullOptions
 ): Promise<EPullResult> {
     // Skip if already downloaded.
     // The download is always forced when unpack is true or output is set.
     if (
-        options.unpack !== true &&
-        options.output === undefined &&
-        options.force !== true &&
-        isInstalled(target.id)
+        options?.unpack !== true &&
+        options?.output === undefined &&
+        options?.force !== true &&
+        isInstalled(target.id, { builtinDirsOnly: true })
     ) {
         console.debug("Already installed");
         return Promise.resolve(EPullResult.AlreadyDownloaded);
@@ -54,19 +54,19 @@ export async function pullFromSources(
 
     // Target is an id
     for await (const sourceTarget of getTargets(`${target.id}.zip`, {
-        sources: target.sources,
-        extraSources: target.extraSources,
+        sources: target.sources ?? options?.sources,
+        extraSources: target.extraSources ?? options?.extraSources,
     })) {
-        console.log(`Source ${sourceTarget}`);
+        console.log(`Source ${sourceTarget.toString()}`);
         try {
             // If the target exists locally
-            if (!target.isRemote()) {
-                return await pullFromDisk(target, options);
+            if (!sourceTarget.isRemote()) {
+                return await pullFromDisk(sourceTarget, options);
             }
 
             // If the target is a direct URL
-            if (target.isURL()) {
-                return await pullFromURL(target, options);
+            if (sourceTarget.isURL()) {
+                return await pullFromURL(sourceTarget, options);
             }
         } catch (err) {
             console.debug(err);

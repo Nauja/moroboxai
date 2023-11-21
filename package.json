@@ -7,6 +7,7 @@
     "scripts": {
         "test": "jest --coverage",
         "test:watch": "jest --watch",
+        "clear_jest": "jest --clearCache",
         "lint:gulp": "gulp lint",
         "build:gulp": "gulp build",
         "lint": "npm run lint:gulp -s",

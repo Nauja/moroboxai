@@ -14,13 +14,13 @@ import pullFromDisk from "./pullFromDisk";
  */
 export async function pullFromURL(
     target: Target,
-    options: PullOptions
+    options?: PullOptions
 ): Promise<EPullResult> {
     // Download to a temporary file
     await downloadFile(
         target.url,
         {
-            timeout: options.timeout,
+            timeout: options?.timeout,
         },
         async (tmpPath) => {
             await pullFromDisk(makeTarget(tmpPath), options);

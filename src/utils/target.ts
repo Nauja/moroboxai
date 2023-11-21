@@ -15,6 +15,7 @@ export interface Target {
     isPath(): boolean;
     isUnknownSource(): boolean;
     isRemote(): boolean;
+    toString(): string;
 }
 
 abstract class TargetBase implements Target {
@@ -67,9 +68,14 @@ class IDTarget extends TargetBase {
     isRemote(): boolean {
         return true;
     }
+
+    toString(): string {
+        return this.id;
+    }
 }
 
 class URLTarget extends TargetBase {
+    readonly id: string;
     private readonly _url: URL;
     readonly sources: string[] = [];
     readonly extraSources: string[];
@@ -93,6 +99,14 @@ class URLTarget extends TargetBase {
     isRemote(): boolean {
         return true;
     }
+
+    isPath(): boolean {
+        return false;
+    }
+
+    toString(): string {
+        return this.url.toString();
+    }
 }
 
 class PathTarget extends TargetBase {
@@ -112,6 +126,10 @@ class PathTarget extends TargetBase {
 
     isPath(): boolean {
         return true;
+    }
+
+    toString(): string {
+        return this.path;
     }
 }
 
@@ -137,7 +155,7 @@ export default function target(
     source: string | Source | Target,
     value?: string
 ): Target {
-    if (value === undefined) {
+    if (value !== undefined) {
         return combineSource(source, value);
     }
 
